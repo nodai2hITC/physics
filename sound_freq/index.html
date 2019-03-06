@@ -1,0 +1,226 @@
+
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>任意の振動数の音を発生させるツール</title>
+		<meta name="description" content="任意の振動数の音を発生させるツール" />
+		<meta name="keywords" content="任意の振動数の音を発生させるツール" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css"><!--
+form{
+	clear: both;
+	position: relative;
+	width: 100%;
+	margin-top: 1em;
+}
+form p{
+	margin: 0;
+	padding: 0;
+}
+
+form p.mode{
+	position: absolute;
+	left: 8px;
+	top: 0;
+}
+form div.freq{
+	margin-left: 64px;
+}
+form p.freq input.freq_range{
+	width: 95%;
+}
+form p.freq_control1{
+	float: left;
+}
+form p.freq_control2{
+	float: right;
+}
+form p.freq_value{
+	text-align: center;
+}
+form p.freq_value input{
+	width: 3em;
+	text-align: center;
+}
+form p.freq_value select{
+	width: 6em;
+}
+
+form#add{
+	width: 5em;
+	margin: 1em;
+}
+		--></style>
+		<script src="../scripts/zepto.min.js" type="text/javascript"></script>
+	</head>
+	<body>
+	<div id="forms">
+		<form id="form0">
+			<p class="mode"><img src="startbutton.png" alt="▶" /></p>
+			<div class="freq">
+				<p class="freq">
+					<input type="range" name="freq_range" min="20" max="20000" value="440" class="freq_range" />
+				</p>
+				<p class="freq_control1">
+					<input type="button" class="minus1000" name="minus1000" value="-1000" />
+					<input type="button" class="minus100" name="minus100" value="-100" />
+					<input type="button" class="minus10" name="minus10" value="-10" />
+					<input type="button" class="minus1" name="minus1" value="-1" />
+				</p>
+				<p class="freq_control2">
+					<input type="button" class="plus1" name="plus1" value="+1" />
+					<input type="button" class="plus10" name="plus10" value="+10" />
+					<input type="button" class="plus100" name="plus100" value="+100" />
+					<input type="button" class="plus1000" name="plus1000" value="+1000" />
+				</p>
+				<p class="freq_value">
+					振動数：<input type="text" name="freq_value" value="440" class="freq_value" />　
+					波形：<select name="freq_type" class="freq_type">
+						<option value="sine" selected="selected">正弦波</option>
+						<option value="square">矩形波</option>
+						<option value="sawtooth">ノコギリ波</option>
+						<option value="triangle">三角波</option>
+					</select>
+				</p>
+			</div>
+		</form>
+	</div>
+	<form id="add"><input type="button" id="add_form" value="音を追加" /></form>
+	<script type="text/javascript">
+
+var oscillators = [null];
+
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var context = new AudioContext();
+context.createGain = context.createGain || context.createGainNode;
+var gain = context.createGain();
+
+function play(num){
+	if (oscillators[num]){
+		oscillators[num].stop();
+		oscillators[num] = null;
+		$("form#form" + num + " img").attr("src", "startbutton.png");
+	} else {
+		oscillators[num] = context.createOscillator();
+		oscillators[num].type = $("form#form" + num + " select.freq_type").val();
+		oscillators[num].frequency.value = $("form#form" + num + " input.freq_value").val();
+		oscillators[num].connect(gain);
+		gain.connect(context.destination);
+		oscillators[num].start();
+		$("form#form" + num + " img").attr("src", "stopbutton.png");
+	}
+}
+
+function change_freq(num){
+	var val = parseFloat($("form#form" + num + " input.freq_value").val());
+	$("form#form" + num + " input.freq_range").val(val);
+	if (oscillators[num]) oscillators[num].frequency.value = val;
+}
+
+function ready(num){
+	$("form#form" + num + " img").attr("src", "startbutton.png");
+	$("form#form" + num + " img").click(function(){ play(num) });
+	
+	$("form#form" + num + " input.freq_range").change(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val($("form#form" + num + " input.freq_range").val());
+		change_freq(num);
+	});
+	$("form#form" + num + " input.freq_value").change(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		change_freq(num);
+	});
+	$("form#form" + num + " select.freq_type").change(function(){
+		if (oscillators[num]) oscillators[num].type = $("form#form" + num + " select.freq_type").val();
+	});
+	
+	$("form#form" + num + " input.minus1000").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val > 1020 ? val - 1000 : 20);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.minus100").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val > 120 ? val - 100 : 20);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.minus10").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val > 30 ? val - 10 : 20);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.minus1").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val > 21 ? val - 1 : 20);
+		change_freq(num);
+	});
+	
+	$("form#form" + num + " input.plus1000").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val < 19000 ? val + 1000 : 20000);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.plus100").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val < 19900 ? val + 100 : 20000);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.plus10").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val < 19990 ? val + 10 : 20000);
+		change_freq(num);
+	});
+	$("form#form" + num + " input.plus1").click(function(){
+		var val = parseFloat($("form#form" + num + " input.freq_value").val());
+		$("form#form" + num + " input.freq_value").val( val < 19999 ? val + 1 : 20000);
+		change_freq(num);
+	});
+}
+
+function add_new_form(){
+	var num = oscillators.length;
+	var html = '' + 
+'		<form id="form' + num + '">' + "\n" +
+'			<p class="mode"><img src="startbutton.png" alt="▶" /></p>' + "\n" +
+'			<div class="freq">' + "\n" +
+'				<p class="freq">' + "\n" +
+'					<input type="range" name="freq_range" min="20" max="20000" value="440" class="freq_range" />' + "\n" +
+'				</p>' + "\n" +
+'				<p class="freq_control1">' + "\n" +
+'					<input type="button" class="minus1000" name="minus1000" value="-1000" />' + "\n" +
+'					<input type="button" class="minus100" name="minus100" value="-100" />' + "\n" +
+'					<input type="button" class="minus10" name="minus10" value="-10" />' + "\n" +
+'					<input type="button" class="minus1" name="minus1" value="-1" />' + "\n" +
+'				</p>' + "\n" +
+'				<p class="freq_control2">' + "\n" +
+'					<input type="button" class="plus1" name="plus1" value="+1" />' + "\n" +
+'					<input type="button" class="plus10" name="plus10" value="+10" />' + "\n" +
+'					<input type="button" class="plus100" name="plus100" value="+100" />' + "\n" +
+'					<input type="button" class="plus1000" name="plus1000" value="+1000" />' + "\n" +
+'				</p>' + "\n" +
+'				<p class="freq_value">' + "\n" +
+'					振動数：<input type="text" name="freq_value" value="440" class="freq_value" />　' + "\n" +
+'					波形：<select name="freq_type" class="freq_type">' + "\n" +
+'						<option value="sine" selected="selected">正弦波</option>' + "\n" +
+'						<option value="square">矩形波</option>' + "\n" +
+'						<option value="sawtooth">ノコギリ波</option>' + "\n" +
+'						<option value="triangle">三角波</option>' + "\n" +
+'					</select>' + "\n" +
+'				</p>' + "\n" +
+'			</div>' + "\n" +
+'		</form>';
+	$("#forms").append(html);
+	oscillators.push(null);
+	ready(num);
+}
+
+$().ready(function(){
+	ready(0);
+	$("#add_form").click(add_new_form);
+});
+	</script>
+	</body>
+</html>
+

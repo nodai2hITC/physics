@@ -1,0 +1,287 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>ドップラー効果</title>
+		<meta name="description" content="ドップラー効果" />
+		<meta name="keywords" content="ドップラー効果" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+input[type="range"]{
+	width: 30em;
+}
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/soundjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="960" height="300">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<dl>
+				<dt>　音源の速度：　</dt>
+				<dd><input type="range" id="v_s" min="-300" max="300" value="0" />
+				<span id="v_s_value">0</span></dd>
+				<dt>　観測者の速度：</dt>
+				<dd><input type="range" id="v_o" min="-300" max="300" value="0" /> 
+				<span id="v_o_value">0</span></dd>
+				<dt>　音速：　　　　</dt>
+				<dd><input type="range" id="V" min="120" max="500" value="340" /> 
+				<span id="V_value">340</span></dd>
+				<dt>　風：　　　　　</dt>
+				<dd><input type="range" id="wind" min="-100" max="100" value="0" /> 
+				<span id="wind_value">0</span></dd>
+			</dl>
+			<p>
+				　音波（円）表示
+				<input type="checkbox" id="wave_c" checked="checked" />
+				　音波（波）表示
+				<input type="checkbox" id="wave_w" checked="checked" />
+			</p>
+		</form>
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "sound1", src: "sound.mp3" },
+	{ id: "car"   , src: "car.png" },
+	{ id: "person", src: "person.png" },
+	{ id: "wave"  , src: "wave.png" },
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton" , src: "stopbutton.png" },
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+var stage;
+
+var earth, car, person, startbutton, resetbutton;
+var waves = [];
+var wave;
+var sound;
+var earth_y = 200;
+var canvas_w = document.getElementById("stage").width;
+var canvas_h = document.getElementById("stage").height;
+var canvas_r = Math.sqrt(canvas_w * canvas_w + canvas_h * canvas_h);
+var t = 0;
+var T = 30;
+var V = 340;
+var v_s = 0;
+var v_o = 0;
+var wind = 0;
+
+var is_running = false;
+var was_running = false;
+
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var context = new AudioContext();
+context.createGain = context.createGain || context.createGainNode;
+var gain = context.createGain();
+
+function my_init(){
+	earth = new createjs.Shape();
+	stage.addChild(earth);
+	earth.graphics.beginFill("#999").drawRect(0, earth_y, canvas_w, canvas_h).endFill();
+	
+	wave = new createjs.Shape();
+	stage.addChild(wave);
+	
+	createjs.Sound.registerSound("sound.mp3", "sound1");
+	car    = add_image("car.png", { regX: 32, regY: 64, x: 150 , y: earth_y,
+		onMouseDown: function(evt){
+			this.offset = { x: this.x - evt.stageX, y: this.y-evt.stageY };
+			was_running = is_running;
+			is_running = false;
+		},
+		onPressMove: function(evt){
+			this.x = evt.stageX+ this.offset.x;
+		},
+		onPressUp: function(evt){
+			is_running = was_running;
+		}
+	});
+	person = add_image("person.png", { regX: 24, regY: 48, x: canvas_w - 150 , y: earth_y,
+		onMouseDown: function(evt){
+			this.offset = { x: this.x - evt.stageX, y: this.y-evt.stageY };
+			was_running = is_running;
+			is_running = false;
+		},
+		onPressMove: function(evt){
+			this.x = evt.stageX+ this.offset.x;
+		},
+		onPressUp: function(evt){
+			is_running = was_running;
+		}
+	});
+	
+	startbutton = add_image("startbutton.png", { regX: 24, regY: 24, x: 50 , y: earth_y + 50,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	});
+	resetbutton = add_image("resetbutton.png", { regX: 24, regY: 24, x: canvas_w-50 , y: earth_y+50,
+		onMouseDown: function(evt){
+			reset_stage();
+		}
+	});
+}
+
+function reset_stage(){
+	V    = document.getElementById("V").value    = 340;
+	v_s  = document.getElementById("v_s").value  = 0;
+	v_o  = document.getElementById("v_o").value  = 0;
+	wind = document.getElementById("wind").value = 0;
+	
+	car.x = 150;
+	person.x = 810;
+	t = 0;
+	T = 30;
+	
+	for(var i=0; i<waves.length; i++){
+		stage.removeChild(waves[i]);
+	}
+	waves = [];
+	wave.graphics.clear();
+}
+
+function update(event){
+	V    = parseInt(document.getElementById("V").value);
+	v_s  = parseInt(document.getElementById("v_s").value);
+	v_o  = parseInt(document.getElementById("v_o").value);
+	wind = parseInt(document.getElementById("wind").value);
+	document.getElementById("V_value").innerHTML = V;
+	document.getElementById("v_s_value").innerHTML = v_s;
+	document.getElementById("v_o_value").innerHTML = v_o;
+	document.getElementById("wind_value").innerHTML = wind;
+	if (is_running){
+		t++;
+		if (t % T == 0){
+			waves.unshift({
+				x: car.x,
+				y: car.y - 24,
+				hit: 0,
+				r: 0,
+				v: v_s
+			})
+		}
+		
+		for(var i=0; i<waves.length; i++){
+			waves[i].r += 0.01 * V;
+			waves[i].x += 0.01 * wind;
+			if (waves[i].hit == 0){
+				var r = waves[i].r - Math.abs(waves[i].x - person.x);
+				if (r < 24 && r > -24){
+					var oscillator = context.createOscillator();
+					var pm = waves[i].x > person.x ? -1 : 1;
+					oscillator.type = "square";
+					oscillator.frequency.value = 660 * (V - v_o*pm + wind*pm) / (V - waves[i].v*pm + wind*pm);
+					oscillator.connect(gain);
+					gain.connect(context.destination);
+					oscillator.start();
+					window.setTimeout(function() { oscillator.stop(); }, 100);
+//					createjs.Sound.play("sound1");
+					waves[i].hit = 1;
+				}
+			}
+		}
+			
+		for(var i=waves.length - 1; i>=0; i--){
+			if (waves[i].r > canvas_r){
+				waves.pop();
+			} else {
+				break;
+			}
+		}
+		var g = wave.graphics;
+		g.clear().setStrokeStyle(1);
+		var wave_c = document.getElementById("wave_c").checked;
+		var wave_w = document.getElementById("wave_w").checked;
+		for(var i=0; i<waves.length; i++){
+			if (wave_c){
+				g.beginStroke("#000").drawCircle(waves[i].x, waves[i].y, waves[i].r).endStroke();
+			}
+			if (i==0) continue;
+			if (!wave_w) continue;
+			var x1, x2, y1, y2;
+			x1 = waves[i  ].x + waves[i  ].r
+			x2 = waves[i-1].x + waves[i-1].r
+			y1 = waves[i  ].y
+			y2 = waves[i-1].y
+			g.beginStroke("#00f").moveTo(x1, y1)
+			                     .bezierCurveTo((x1*5+x2*1)/6, y1 - 30, (x1*4+x2*2)/6, y1 - 30, (x1+x2)/2, y1)
+			                     .bezierCurveTo((x1*2+x2*4)/6, y2 + 30, (x1*1+x2*5)/6, y2 + 30, x2,        y2)
+			x1 = waves[i  ].x - waves[i  ].r
+			x2 = waves[i-1].x - waves[i-1].r
+			y1 = waves[i  ].y
+			y2 = waves[i-1].y
+			g.beginStroke("#00f").moveTo(x1, y1)
+			                     .bezierCurveTo((x1*5+x2*1)/6, y1 - 30, (x1*4+x2*2)/6, y1 - 30, (x1+x2)/2, y1)
+			                     .bezierCurveTo((x1*2+x2*4)/6, y2 + 30, (x1*1+x2*5)/6, y2 + 30, x2,        y2)
+		}
+		
+		car.x += 0.01 * v_s;
+		person.x += 0.01 * v_o;
+	}
+	stage.update();
+}
+
+
+function add_image(filename, hash){
+	var image = new createjs.Bitmap(filename);
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			image.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else {
+			image[i] = hash[i];
+		}
+	}
+	stage.addChild(image);
+	return image;
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+		
+//		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	document.getElementById('stage').addEventListener('touchstart', function(){
+		var oscillator = context.createOscillator();
+		oscillator.type = "square";
+		oscillator.frequency.value = 660;
+		oscillator.connect(gain);
+		gain.connect(context.destination);
+		oscillator.start();
+		window.setTimeout(function() { oscillator.stop(); }, 50);
+		createjs.Sound.play('sound1');
+		this.removeEventListener('touchstart', arguments.callee);
+	}, false);
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

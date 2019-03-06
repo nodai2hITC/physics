@@ -1,0 +1,236 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>自由端反射・固定端反射</title>
+		<meta name="description" content="自由端反射・固定端反射" />
+		<meta name="keywords" content="自由端反射・固定端反射" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="960" height="600" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+	<script type="text/javascript">
+
+var wave_minx = 4;
+var width = 800;
+var max_x = width / wave_minx;
+var regX = 100;
+var T = 80;
+
+var manifest = [
+	{ id: "button1_0", src: "button1_0.png" },
+	{ id: "button2_0", src: "button2_0.png" },
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+	{ id: "source1",     src: "source1.png" },
+];
+
+var stage;
+
+var waves = [];
+var sources = [];
+var buttons = [];
+var last_y = 150;
+
+var is_running = true;
+
+function my_init(){
+	waves.push(new createjs.Shape());
+	waves[0].x = regX;
+	waves[0].y = 150;
+	stage.addChild(waves[0]);
+	waves[0].waves = [];
+	waves[0].waves.push({ colour: "#f00", y: []});
+	waves[0].waves.push({ colour: "#00f", y: []});
+	for(var i=0; i<waves[0].waves.length; i++){
+		for(var j=0; j<=max_x; j++){
+			waves[0].waves[i].y[j] = 0;
+		}
+	}
+	waves[0].update = function(){
+		this.waves[1].y.push(this.waves[0].y.pop());
+		this.waves[1].y.shift();
+		switch(sources[0].mode){
+		case "stop":
+			if (sources[0].y > 145 && sources[0].y < 155) sources[0].y = 150;
+			else sources[0].y += (sources[0].y - 150 < 0) ? 5 : -5;
+			break;
+		case "once":
+		case "loop":
+			sources[0].t++;
+			sources[0].y = -Math.sin(Math.PI * sources[0].t / T * 2) * 70 + 150;
+			if (sources[0].mode == "once" && sources[0].t > T){
+				sources[0].mode = "stop";
+				sources[0].y = 150;
+				sources[0].t = 0;
+			}
+		}
+		sources[1].y = sources[0].y + 300;
+		this.waves[0].y.unshift(sources[0].y - this.y);
+	}
+	waves.push(new createjs.Shape());
+	waves[1].x = regX;
+	waves[1].y = 450;
+	stage.addChild(waves[1]);
+	waves[1].waves = [];
+	waves[1].waves.push({ colour: "#f00", y: []});
+	waves[1].waves.push({ colour: "#00f", y: []});
+	for(var i=0; i<waves[0].waves.length; i++){
+		for(var j=0; j<=max_x; j++){
+			waves[1].waves[i].y[j] = 0;
+		}
+	}
+	waves[1].update = function(){
+		this.waves[1].y.push(-this.waves[0].y.pop());
+		this.waves[1].y.shift();
+		this.waves[0].y.unshift(waves[0].waves[0].y[0]);
+	}
+	
+	sources.push(add_image("source1.png", { regX: 16, regY: 16, x: regX, y: 150,
+		t: 0, mode: "stop",
+		onMouseDown: function(evt){
+			this.offset = {x:this.x-evt.stageX, y:this.y-evt.stageY};
+			this.mode = "press";
+		},
+		onPressMove: function(evt){
+			var y = evt.stageY + this.offset.y;
+			if (y <  80) y =  80;
+			if (y > 220) y = 220;
+			this.y = (last_y + y) / 2;
+			last_y = y;
+//			this.y = y;
+		},
+		onPressUp: function(evt){
+			this.mode = "stop";
+		}
+	}));
+	sources.push(add_image("source1.png", { regX: 16, regY: 16, x: regX, y: 450 }));
+	
+	buttons.push(add_image("stopbutton.png", { regX: 24, regY: 24, x: 30 , y: 550,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+	buttons.push(add_image("button1_0.png", { regX: 24, regY: 24, x: 30 , y: 400,
+		onMouseDown: function(evt){
+			sources[0].mode = "once";
+			sources[0].t = sources[0].t % T;
+		}
+	}));
+	buttons.push(add_image("button2_0.png", { regX: 24, regY: 24, x: 30 , y: 460,
+		onMouseDown: function(evt){
+			if (sources[0].mode == "loop"){
+				sources[0].mode = "stop";
+				sources[0].t = 0;
+			} else {
+				sources[0].mode = "loop";
+			}
+		}
+	}));
+}
+
+function update(event){
+	if (is_running){
+		update_waves(waves);
+	}
+	draw_waves(waves[0]);
+	draw_waves(waves[1]);
+}
+
+function update_waves(waves){
+	for(var i=0; i<waves.length; i++){
+		waves[i].update();
+	}
+}
+
+function add_image(filename, hash){
+	var image = new createjs.Bitmap(filename);
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			image.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else {
+			image[i] = hash[i];
+		}
+	}
+	stage.addChild(image);
+	return image;
+}
+
+function sumy(wave, j){
+	y = 0;
+	for(var i=0; i<wave.waves.length; i++) y+= wave.waves[i].y[j];
+	return y;
+}
+function draw_waves(wave){
+	var g = wave.graphics;
+	g.clear();
+	
+	// それぞれの波を描画
+	g.setStrokeStyle(2);
+	for(var i=0; i<wave.waves.length; i++){
+		g.beginStroke(wave.waves[i].colour);
+		g.moveTo(0, wave.waves[i].y[0]);
+		var y = wave.waves[i].y;
+		for(var j=1; j<y.length; j++){
+			g.lineTo(j * wave_minx, y[j]);
+		}
+		g.endStroke();
+	}
+	
+	// 合成波を描画
+	g.setStrokeStyle(4);
+	g.beginStroke("#000");
+	g.moveTo(0, sumy(wave, 0));
+	for(var j=1; j<wave.waves[0].y.length; j++){
+		g.lineTo(j * wave_minx, sumy(wave, j));
+	}
+	g.endStroke();
+	
+	// 基準線を引く
+//	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+	
+	// 更新
+	stage.update();
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

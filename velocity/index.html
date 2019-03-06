@@ -1,0 +1,322 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>x-t グラフ</title>
+		<meta name="description" content="x-t グラフ" />
+		<meta name="keywords" content="x-t グラフ" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<div style="width: 1500px;">
+		<canvas id="stage" width="900" height="740" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<p>
+				<input type="checkbox" id="graph" name="graph" />
+				<label for="graph">グラフを表示</label>
+			</p>
+			<p>
+				<input type="checkbox" id="velo" name="velo" checked="checked" />
+				<label for="velo">速度を表示</label>
+			</p>
+			<p>
+				<input type="checkbox" id="kata" name="kata" onclick="point1_x = point2_x = null;" />
+				<label for="kata">傾きを表示</label>
+			</p>
+			<p>
+				<input type="radio" id="mode1" name="mode" value="1" checked="checked" onclick="time=0;" />
+				<label for="mode1">等速度運動</label><br />
+				<input type="radio" id="mode2" name="mode" value="2" onclick="time=0;" />
+				<label for="mode2">加速運動</label>
+			</p>
+		</form>
+	</div>
+	<script type="text/javascript">
+
+var draw_graph = false;
+var mode = 1;
+
+
+var manifest = [
+	{ id: "car", src: "car.png" },
+	{ id: "timer", src: "timer.png" },
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+];
+
+var stage;
+var graph, car, text_x, text_t, timer, graphb, point1, point2, velocity;
+var velocity_v = true;
+var point1_x = null, point2_x = null;
+
+var time = 0;
+
+var buttons = [];
+
+var is_running = false;
+
+function my_init(){
+	graphb = new createjs.Shape();
+	graphb.x = 150;
+	graphb.y =   0;
+	graphb.graphics.beginFill("#FFF").drawRect(0, 0, 680, 680).endFill();
+	stage.addChild(graphb);
+	
+	graphb.on("mousedown", function(evt){
+		if(!katamuki_v) return;
+		if (point1_x == null){
+			point1_x = evt.stageX - graph.x;
+		} else {
+			point2_x = evt.stageX - graph.x;
+		}
+	});
+	graphb.on("pressmove", function(evt){
+		if(!katamuki_v) return;
+		if (point2_x != null) point2_x = evt.stageX - graph.x;
+	});
+	
+	timer = add_image("timer.png", { regX: 16, regY: 16, x: 150 , y: 716 });
+	timer.visible = false;
+	stage.addChild(timer);
+	
+	car = add_image("car.png", { regX: 24, regY: 32, x: 40 , y: 680 });
+	stage.addChild(car);
+	
+	point1 = new createjs.Shape();
+	point1.graphics.clear();
+	point1.graphics.beginFill("#0000FF");
+	point1.graphics.drawCircle(0, 0, 12);
+	point1.graphics.endFill();
+	point1.visible = false;
+	stage.addChild(point1);
+	point1.on("pressmove", function(evt){
+		if (point1_x != null) point1_x = evt.stageX - graph.x;
+		return false;
+	});
+	
+	point2 = new createjs.Shape();
+	point2.graphics.clear();
+	point2.graphics.beginFill("#00FF00");
+	point2.graphics.drawCircle(0, 0, 12);
+	point2.graphics.endFill();
+	point2.visible = false;
+	stage.addChild(point2);
+	
+	graph = new createjs.Shape();
+	graph.x = 150;
+	graph.y = 680;
+	stage.addChild(graph);
+	
+	velocity = new createjs.Shape();
+	velocity.x = 40;
+	velocity.y =  0;
+	stage.addChild(velocity);
+	
+	text_x = new createjs.Text("" ,"32px Century", "#000");
+	text_x.text = "x";
+	text_x.x = 140;
+	text_x.y = 40;
+	text_x.visible = false;
+	stage.addChild(text_x);
+	text_t = new createjs.Text("" ,"32px Century", "#000");
+	text_t.text = "t";
+	text_t.x = 760;
+	text_t.y = 660;
+	text_t.visible = false;
+	stage.addChild(text_t);
+	
+	buttons.push(add_image("startbutton.png", { regX: 24, regY: 24, x: 860 , y: 700,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			if (is_running) time = 0;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+}
+
+function update(event){
+	draw_graph = document.forms[0].graph.checked;
+	velocity_v = document.forms[0].velo.checked;
+	katamuki_v = document.forms[0].kata.checked;
+	mode = document.forms[0].mode1.checked ? 1 : 2;
+	
+	if (is_running) time += 1;
+	car.y = (mode == 1) ? (680 - time * 4) : (680 - time * time / 40);
+	timer.x = 150 + time * 4;
+	velocity.visible = velocity_v;
+	graph.visible = text_x.visible = text_t.visible = timer.visible = draw_graph;
+	point1.visible = (point1_x != null && draw_graph);
+	point2.visible = (point2_x != null && draw_graph);
+	if (draw_graph){
+		var g = graph.graphics;
+		g.clear();
+		g.setStrokeStyle(6);
+		g.beginStroke("#c00").moveTo(0, 0)
+		if (mode==1){
+			g.lineTo(680,-680).endStroke();
+		} else {
+			for(var i=0; i<=340; i++){
+				g.lineTo(i*2, -i*i/160);
+			}
+			g.endStroke();
+		}
+		
+		if (point1_x != null){
+			point1.x = point1_x + 150;
+			point1.y = (mode == 1) ? (680 - point1_x) : (680 - point1_x * point1_x / 640);
+		}
+		if (point2_x != null){
+			point2.x = point2_x + 150;
+			point2.y = (mode == 1) ? (680 - point2_x) : (680 - point2_x * point2_x / 640);
+		}
+		
+		if( point1_x != null && point2_x != null){
+			var x1, y1, x2, y2;
+			var a;
+			if(point1_x == point2_x){
+				a = (mode==1) ? 640 : (point1_x*2);
+				x1 = x2 = point1_x;
+				y1 = y2 = (mode==1) ? point1_x : (point1_x * point1_x / 640);
+			} else {
+				x1 = point1_x;
+				x2 = point2_x;
+				y1 = (mode==1) ? point1_x : (point1_x * point1_x / 640);
+				y2 = (mode==1) ? point2_x : (point2_x * point2_x / 640);
+				a = 640.0 * (y2 - y1) / (x2 - x1);
+			}
+			if (x1 * a > y1 * 640){
+				x1 -= 640.0 * y1 / a;
+				y1 = 0;
+			} else {
+				y1 -= 1.0 * x1 * a / 640;
+				x1 = 0;
+			}
+			if ((680 - x2) * a > (680 - y2) * 640){
+				x2 += 640.0 * ( 680 - y2) / a;
+				y2 = 680;
+			} else {
+				y2 += 1.0 * (680 - x2) * a / 640;
+				x2 = 680;
+			}
+			g.setStrokeStyle(1);
+			g.beginStroke("#000").moveTo(x1, -y1).lineTo(x2, -y2).endStroke();
+			if (katamuki_v){
+				var x, y;
+				x = (point1_x < point2_x) ? point1_x : point2_x;
+				y = (mode==1) ? x : x * x / 640;
+				var dx = 100;
+				var dy = a/6.4;
+				g.setStrokeStyle(1);
+				g.beginStroke("#cc0").drawRect(x, -y, dx, -dy).endStroke();
+				
+				g.setStrokeStyle(5);
+				g.beginStroke("#f66");
+				g.moveTo(x, -y).lineTo(x, -y-dy);
+				g.moveTo(x+2, -y-dy).lineTo(x-12, -y-dy+12);
+				g.moveTo(x-2, -y-dy).lineTo(x+12, -y-dy+12);
+				g.endStroke();
+			}
+		}
+		
+		g.setStrokeStyle(1);
+		g.beginStroke("#000").moveTo(-110, car.y - 680).lineTo(time*4, car.y - 680).lineTo(time*4, 20).endStroke();
+		g.setStrokeStyle(4);
+		g.beginStroke("#000").moveTo(0, -600).lineTo(0,0).lineTo(600,0).endStroke();
+	}
+	if (velocity_v){
+		var a = ( mode==1 ) ? 1 : (1.0 * time / 80);
+			velocity.graphics.clear();
+		if (a > 0.05){
+			velocity.graphics.setStrokeStyle(5);
+			velocity.graphics.beginStroke("#f66");
+			velocity.graphics.moveTo(0, car.y).lineTo(0, car.y - a*100);
+			velocity.graphics.moveTo(2,   car.y - a*100 - 2).lineTo(-12, car.y - a*100 - 2 + 14);
+			velocity.graphics.moveTo(- 2, car.y - a*100 - 2).lineTo( 12, car.y - a*100 - 2 + 14);
+			velocity.graphics.endStroke();
+		}
+	}
+	stage.update();
+}
+
+function add_image(filename, hash){
+	var image = new createjs.Bitmap(filename);
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			image.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else {
+			image[i] = hash[i];
+		}
+	}
+	stage.addChild(image);
+	return image;
+}
+
+function draw_waves(wave){
+	var g = wave.graphics;
+	g.clear();
+	
+	// それぞれの波を描画
+	g.setStrokeStyle(2);
+	for(var i=0; i<wave.waves.length; i++){
+		g.beginStroke(wave.waves[i].colour);
+		g.moveTo(0, wave.waves[i].y[0]);
+		var y = wave.waves[i].y;
+		for(var j=1; j<y.length; j++){
+			g.lineTo(j * wave_minx, y[j]);
+		}
+		g.endStroke();
+	}
+	
+	// 合成波を描画
+	g.setStrokeStyle(4);
+	g.beginStroke("#000");
+	g.moveTo(0, sumy(wave, 0));
+	for(var j=1; j<wave.waves[0].y.length; j++){
+		g.lineTo(j * wave_minx, sumy(wave, j));
+	}
+	g.endStroke();
+	
+	// 基準線を引く
+//	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+	
+	// 更新
+	stage.update();
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+			
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

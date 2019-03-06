@@ -1,0 +1,205 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>RLC</title>
+		<meta name="description" content="RLC" />
+		<meta name="keywords" content="RLC" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="960" height="620" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+	<script type="text/javascript">
+
+var wave_minx = 2;
+var omega_c = 0.001, i_c = 0.5;
+
+var manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+];
+
+var stage;
+
+var circuit_shape;
+var r_wave, l_wave, c_wave;
+var buttons = [];
+var text_omega, slider_omega;
+var text_r, slider_r;
+var text_l, slider_l;
+var text_c, slider_c;
+var time = 0;
+
+var is_running = true;
+var is_editing = false;
+
+function my_init(){
+	circuit_shape = add_shape({ x: 30, y: 230 })
+	var g = circuit_shape.graphics;
+	g.setStrokeStyle(2).beginStroke("#000").moveTo(20, 0);
+	g.lineTo(78, 0).lineTo(78, -20).lineTo(222, -20).lineTo(222, 20).lineTo(78, 20).lineTo(78, 0).moveTo(222, 0).lineTo(280, 0);
+	g.lineTo(280, 100).lineTo(180, 100).drawCircle(150, 100, 30).moveTo(120, 100).lineTo(20, 100).lineTo(20,0);
+	g.moveTo(124, 100).arc(137, 100, 13, Math.PI, 0).moveTo(176, 100).arc(163, 100, 13, 0, Math.PI);
+	
+	g.moveTo(320, 0).lineTo(378, 0).arc(396, 0, 18, Math.PI, 0).arc(432, 0, 18, Math.PI, 0).arc(468, 0, 18, Math.PI, 0).arc(504, 0, 18, Math.PI, 0).lineTo(580, 0);
+	g.lineTo(580, 100).lineTo(480, 100).drawCircle(450, 100, 30).moveTo(420, 100).lineTo(320, 100).lineTo(320,0);
+	g.moveTo(424, 100).arc(437, 100, 13, Math.PI, 0).moveTo(476, 100).arc(463, 100, 13, 0, Math.PI);
+	
+	g.moveTo(620, 0).lineTo(740, 0).moveTo(740, -20).lineTo(740, 20).moveTo(760, -20).lineTo(760, 20).moveTo(760, 0).lineTo(880, 0);
+	g.lineTo(880, 100).lineTo(780, 100).drawCircle(750, 100, 30).moveTo(720, 100).lineTo(620, 100).lineTo(620,0);
+	g.moveTo(724, 100).arc(737, 100, 13, Math.PI, 0).moveTo(776, 100).arc(763, 100, 13, 0, Math.PI);
+	
+	r_wave = add_shape({ x:  30, y: 100 });
+	l_wave = add_shape({ x: 330, y: 100 });
+	c_wave = add_shape({ x: 630, y: 100 });
+	r_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	l_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	c_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	
+	text_r   = add_text("電気抵抗：", "36px Meiryo", "#000", { x: 50, y: 400 });
+	slider_r = add_slider(50, 200, 260, 48, {x: 50, y: 450, value: 100,
+		onDblClick: function(evt){ this.value = 100; }
+	});
+	text_l   = add_text("自己ｲﾝﾀﾞｸﾀﾝｽ：", "36px Meiryo", "#000", { x: 350, y: 400 });
+	slider_l = add_slider(50, 200, 260, 48, {x: 350, y: 450, value: 100,
+		onDblClick: function(evt){ this.value = 100; }
+	});
+	text_c   = add_text("電気容量：", "36px Meiryo", "#000", { x: 650, y: 400 });
+	slider_c = add_slider(50, 200, 260, 48, {x: 650, y: 450, value: 100,
+		onDblClick: function(evt){ this.value = 100; }
+	});
+	
+	text_omega   = add_text("角周波数：", "36px Meiryo", "#000", { x: 200, y: 565 });
+	slider_omega = add_slider(50, 200, 500, 48, {x: 380, y: 565, value: 100,
+		onChange:   function(evt){ reset(); },
+		onDblClick: function(evt){ this.value = 100; this.onChange(evt)}
+	});
+	
+	buttons.push(add_image("stopbutton.png", { regX: 24, regY: 24, x: 50 , y: 580,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+	
+	reset();
+}
+
+function reset(){
+	time = 0;
+}
+
+function update(event){
+	var rg, lg, cg;
+	var omega = slider_omega.value;
+	var r = slider_r.value;
+	var l = slider_l.value;
+	var c = slider_c.value;
+	
+	rg = r_wave.graphics;
+	rg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	rg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	rg.setStrokeStyle(3).beginStroke("#f00").moveTo(0, 60 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		rg.lineTo(i, 40 * 100 / r * Math.sin(omega_c * omega * (time + i_c*i)));
+	}
+	rg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		rg.lineTo(i, 50 * Math.sin(omega_c * omega * (time + i_c*i)));
+	}
+	
+	lg = l_wave.graphics;
+	lg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	lg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	lg.setStrokeStyle(3).beginStroke("#0f0").moveTo(0, 60 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		lg.lineTo(i, 40 * 10000 / l / omega * Math.sin(omega_c * omega * (time + i_c*i) - Math.PI/2));
+	}
+	lg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		lg.lineTo(i, 50 * Math.sin(omega_c * omega * (time + i_c*i)));
+	}
+	
+	cg = c_wave.graphics;
+	cg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	cg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	cg.setStrokeStyle(3).beginStroke("#00f").moveTo(0, 60 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		cg.lineTo(i, 40 * c * omega / 10000 * Math.sin(omega_c * omega * (time + i_c*i) + Math.PI/2));
+	}
+	cg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 * Math.sin(omega_c * omega * time));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		cg.lineTo(i, 50 * Math.sin(omega_c * omega * (time + i_c*i)));
+	}
+	
+	if (is_running) time++;
+	stage.update();
+}
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

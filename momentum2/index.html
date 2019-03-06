@@ -1,0 +1,385 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>運動量保存則 (2)</title>
+		<meta name="description" content="運動量保存則 (2)" />
+		<meta name="keywords" content="運動量保存則 (2)" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="500">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<p>　
+				<input type="checkbox" id="momentum" name="momentum" checked />
+				<label for="momentum">運動量を表示</label>　
+				<input type="checkbox" id="energy" name="energy" />
+				<label for="energy">運動エネルギーを表示</label>　
+				<input type="checkbox" id="wpoint" name="wpoint" />
+				<label for="wpoint">重心を表示</label>　
+				<input type="checkbox" id="wview" name="wview" />
+				<label for="wview">重心を中心として表示する</label>　
+			</p>
+		</form>
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "stopbutton", src: "stopbutton.png" }
+];
+
+var stage;
+var time = 0;
+var ball_a_1;
+var ball_b_1;
+var ball_c_1;
+var ball_a_2;
+var ball_b_2;
+var ball_c_2;
+var ball1_x = 100;
+var ball2_x = 500;
+
+var ball1_m =  3.0;
+var ball2_m =  2.0;
+var ball1_r = 16 * Math.sqrt(ball1_m);
+var ball2_r = 16 * Math.sqrt(ball2_m);
+var ball1_v =  4.0;
+var ball2_v = -2.0;
+var ball1_m_slider, ball2_m_slider;
+var ball1_m_text, ball2_m_text;
+var ball1_v_slider, ball2_v_slider;
+var ball1_v_text, ball2_v_text;
+var e_slider, e_text, e_text1, e_text2, e_text3;
+var e = 0.5;
+var shototsued = false;
+
+var msize = 10;
+var momentum, energy;
+var objects = [];
+var stop_button;
+
+var is_running = false;
+
+function reset(){
+	ball_a_1.x = ball1_x;
+	ball_a_1.v = ball1_v;
+	ball_b_1.x = ball1_x;
+	ball_b_1.v = ball1_v;
+	ball_c_1.x = ball1_x;
+	ball_c_1.v = ball1_v;
+	ball_a_2.x = ball2_x;
+	ball_a_2.v = ball2_v;
+	ball_b_2.x = ball2_x;
+	ball_b_2.v = ball2_v;
+	ball_c_2.x = ball2_x;
+	ball_c_2.v = ball2_v;
+	ball1_r = 16 * Math.sqrt(ball1_m);
+	ball2_r = 16 * Math.sqrt(ball2_m);
+	is_running = false;
+	shototsued = false;
+	stop_button.image = stop_button.images[1];
+}
+
+function shoutotsu(m1, m2, v1, v2, e){
+	return [
+		1.0 * ((m1 - e * m2) * v1 + m2 * (1 + e) * v2) / (m1 + m2),
+		1.0 * ((m2 - e * m1) * v2 + m1 * (1 + e) * v1) / (m1 + m2)
+	];
+}
+
+function drawArrow(g, x, y, x2, y2, color, weight){
+	var vx = x2 - x, vy = y2 - y;
+	var v = Math.sqrt(vx*vx + vy*vy);
+	g.setStrokeStyle(weight).beginStroke(color);
+	g.moveTo(x, y).lineTo(x + vx, y + vy);
+	g.moveTo(x + vx + 1.42 * vx/v - 1.42 * vy/v, y + vy + 1.42 * vx/v + 1.42 * vy/v);
+	g.lineTo(x + vx - 14.2 * vx/v + 14.2 * vy/v, y + vy - 14.2 * vx/v - 14.2 * vy/v);
+	g.moveTo(x + vx, y + vy);
+	g.lineTo(x + vx - 14.2 * vx/v - 14.2 * vy/v, y + vy + 14.2 * vx/v - 14.2 * vy/v);
+	g.endStroke();
+}
+
+function my_init(){
+	ball1_m_text   = add_text("m1：3.0", "24px Meiryo", "#000", { x: 330, y: 324 })
+	ball1_m_slider = add_slider(1.0, 5.0, 320, 30, {x: 4, y: 324, value: 3.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			ball1_m_text.text = "m1：" + val;
+			ball1_m = evt.target.value;
+			ball1_r = Math.sqrt(ball1_m) * 16;
+			reset();
+		},
+		onDblClick: function(e){ this.value = 3.0; this.onChange(e)}
+	});
+	
+	ball2_m_text   = add_text("m2：2.0", "24px Meiryo", "#000", { x: 780, y: 324 })
+	ball2_m_slider = add_slider(1.0, 5.0, 320, 30, {x: 454, y: 324, value: 2.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			ball2_m_text.text = "m2：" + val;
+			ball2_m = evt.target.value;
+			ball2_r = Math.sqrt(ball2_m) * 16;
+			reset();
+		},
+		onDblClick: function(e){ this.value = 3.0; this.onChange(e)}
+	});
+	
+	ball1_v_text   = add_text("v1：5.0", "24px Meiryo", "#000", { x: 330, y: 364 })
+	ball1_v_slider = add_slider(4.0, 9.9, 320, 30, {x: 4, y: 364, value: 5.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			ball1_v_text.text = "v1：" + val;
+			ball1_v = evt.target.value;
+			reset();
+		},
+		onDblClick: function(e){ this.value = 5.0; this.onChange(e)}
+	});
+	
+	ball2_v_text   = add_text("v2：-2.0", "24px Meiryo", "#000", { x: 780, y: 364 })
+	ball2_v_slider = add_slider(-5.0, 2.0, 320, 30, {x: 454, y: 364, value: -2.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			val = (evt.target.value < 0 ? "-" : " ") + val;
+			ball2_v_text.text = "v2：" + val;
+			ball2_v = evt.target.value;
+			reset();
+		},
+		onDblClick: function(e){ this.value = -3.0; this.onChange(e)}
+	});
+	
+	e_text   = add_text("e：0.50", "24px Meiryo", "#000", { x: 510, y: 404 })
+	e_slider = add_slider(0.01, 0.99, 500, 30, {x: 4, y: 404, value: 0.50,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 100).toString();
+			val = val.substr(-3, 1) + "." + val.substr(-2);
+			e_text.text = "e：" + val;
+			e_text2.text = "e=" + val;
+			e = evt.target.value;
+			reset();
+		},
+		onDblClick: function(e){ this.value = -3.0; this.onChange(e)}
+	});
+	e_text1 = add_text("e=0.00", "18px Meiryo", "#000", { x: 4, y:  26 })
+	e_text2 = add_text("e=0.50", "18px Meiryo", "#000", { x: 4, y: 126 })
+	e_text3 = add_text("e=1.00", "18px Meiryo", "#000", { x: 4, y: 226 })
+	
+	stop_button = add_image("startbutton.png", { regX: 0, regY: 0, x: 850 , y: 450,
+		images: [(new createjs.Bitmap( "stopbutton.png")).image,
+		         (new createjs.Bitmap("startbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[0] : this.images[1];
+		}
+	});
+	
+	ball_a_1 = add_shape({ x: ball1_x, y: 40 });
+	ball_a_1.update = function(){
+		var self = ball_a_1;
+		if (is_running){
+			self.x += 0.5 * self.v;
+			if(self.x + ball1_r > ball_a_2.x - ball2_r && !shototsued){
+				v = shoutotsu(ball1_m, ball2_m, ball_a_1.v, ball_a_2.v, 0);
+				ball_a_1.v = v[0];
+				ball_a_2.v = v[1];
+				
+				v = shoutotsu(ball1_m, ball2_m, ball_b_1.v, ball_b_2.v, e);
+				ball_b_1.v = v[0];
+				ball_b_2.v = v[1];
+				
+				v = shoutotsu(ball1_m, ball2_m, ball_c_1.v, ball_c_2.v, 1);
+				ball_c_1.v = v[0];
+				ball_c_2.v = v[1];
+				
+				shototsued = true;
+			}
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_a_1.x * ball1_m + ball_a_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#990000").drawCircle(offset, 0, ball1_r).endFill();
+	}
+	ball_b_1 = add_shape({ x: ball1_x, y: 140 });
+	ball_b_1.update = function(){
+		var self = ball_b_1;
+		if (is_running){
+			self.x += 0.5 * self.v;
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_b_1.x * ball1_m + ball_b_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#990000").drawCircle(offset, 0, ball1_r).endFill();
+	}
+	ball_c_1 = add_shape({ x: ball1_x, y: 240 });
+	ball_c_1.update = function(){
+		var self = ball_c_1;
+		if (is_running){
+			self.x += 0.5 * self.v;
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_c_1.x * ball1_m + ball_c_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#990000").drawCircle(offset, 0, ball1_r).endFill();
+	}
+	
+	ball_a_2 = add_shape({ x: ball2_x, y: 40 });
+	ball_a_2.update = function(){
+		var self = ball_a_2;
+		if (is_running){
+			self.x += 0.5 * self.v;
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_a_1.x * ball1_m + ball_a_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#0000cc").drawCircle(offset, 0, ball2_r).endFill();
+	}
+	ball_b_2 = add_shape({ x: ball2_x, y: 140 });
+	ball_b_2.update = function(){
+		var self = ball_b_2;
+		if (is_running){
+			self.x += 0.5 * self.v;
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_b_1.x * ball1_m + ball_b_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#0000cc").drawCircle(offset, 0, ball2_r).endFill();
+	}
+	ball_c_2 = add_shape({ x: ball2_x, y: 240 });
+	ball_c_2.update = function(){
+		var self = ball_c_2;
+		if (is_running){
+			self.x += 0.5 * self.v;
+		}
+		var g = this.graphics;
+		var offset = document.getElementById("wview").checked ? (-1.0 * (ball_c_1.x * ball1_m + ball_c_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		g.clear().beginFill("#0000cc").drawCircle(offset, 0, ball2_r).endFill();
+	}
+	
+	momentum = add_shape({ x: 0, y: 0 });
+	momentum.update = function(){
+		var g = this.graphics;
+		g.clear();
+		var offseta = document.getElementById("wview").checked ? (-1.0 * (ball_a_1.x * ball1_m + ball_a_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		var offsetb = document.getElementById("wview").checked ? (-1.0 * (ball_b_1.x * ball1_m + ball_b_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		var offsetc = document.getElementById("wview").checked ? (-1.0 * (ball_c_1.x * ball1_m + ball_c_2.x * ball2_m) / (ball1_m + ball2_m) + 450) : 0;
+		
+		if (document.getElementById("momentum").checked){
+			drawArrow(g, offseta + ball_a_1.x, ball_a_1.y-5, offseta + ball_a_1.x + ball_a_1.v * ball1_m * msize, ball_a_1.y-5, "#f00", 4);
+			drawArrow(g, offsetb + ball_b_1.x, ball_b_1.y-5, offsetb + ball_b_1.x + ball_b_1.v * ball1_m * msize, ball_b_1.y-5, "#f00", 4);
+			drawArrow(g, offsetc + ball_c_1.x, ball_c_1.y-5, offsetc + ball_c_1.x + ball_c_1.v * ball1_m * msize, ball_c_1.y-5, "#f00", 4);
+			drawArrow(g, offseta + ball_a_2.x, ball_a_2.y+5, offseta + ball_a_2.x + ball_a_2.v * ball2_m * msize, ball_a_2.y+5, "#00f", 4);
+			drawArrow(g, offsetb + ball_b_2.x, ball_b_2.y+5, offsetb + ball_b_2.x + ball_b_2.v * ball2_m * msize, ball_b_2.y+5, "#00f", 4);
+			drawArrow(g, offsetc + ball_c_2.x, ball_c_2.y+5, offsetc + ball_c_2.x + ball_c_2.v * ball2_m * msize, ball_c_2.y+5, "#00f", 4);
+			
+			drawArrow(g, 160, ball_a_1.y + 40, 160 + ball_a_1.v * ball1_m * msize + ball_a_2.v * ball2_m * msize, ball_a_1.y + 40, "#f0f", 6);
+			drawArrow(g, 160, ball_a_1.y + 40, 160 + ball_a_1.v * ball1_m * msize, ball_a_1.y + 40, "#f00", 4);
+			drawArrow(g, 160, ball_a_2.y + 40, 160 + ball_a_2.v * ball2_m * msize, ball_a_2.y + 40, "#00f", 4);
+			drawArrow(g, 160, ball_b_1.y + 40, 160 + ball_b_1.v * ball1_m * msize + ball_b_2.v * ball2_m * msize, ball_b_1.y + 40, "#f0f", 6);
+			drawArrow(g, 160, ball_b_1.y + 40, 160 + ball_b_1.v * ball1_m * msize, ball_b_1.y + 40, "#f00", 4);
+			drawArrow(g, 160, ball_b_2.y + 40, 160 + ball_b_2.v * ball2_m * msize, ball_b_2.y + 40, "#00f", 4);
+			drawArrow(g, 160, ball_c_1.y + 40, 160 + ball_c_1.v * ball1_m * msize + ball_c_2.v * ball2_m * msize, ball_c_1.y + 40, "#f0f", 6);
+			drawArrow(g, 160, ball_c_1.y + 40, 160 + ball_c_1.v * ball1_m * msize, ball_c_1.y + 40, "#f00", 4);
+			drawArrow(g, 160, ball_c_2.y + 40, 160 + ball_c_2.v * ball2_m * msize, ball_c_2.y + 40, "#00f", 4);
+		}
+		
+		if (document.getElementById("energy").checked){
+			g.beginFill("#f00").drawRect(520, ball_a_1.y + 40, ball_a_1.v*ball_a_1.v*ball1_m*2, 20).endFill();
+			g.beginFill("#00f").drawRect(520+ball_a_1.v*ball_a_1.v*ball1_m*2, ball_a_1.y + 40, ball_a_2.v*ball_a_2.v*ball2_m*2, 20).endFill();
+			g.beginFill("#f00").drawRect(520, ball_b_1.y + 40, ball_b_1.v*ball_b_1.v*ball1_m*2, 20).endFill();
+			g.beginFill("#00f").drawRect(520+ball_b_1.v*ball_b_1.v*ball1_m*2, ball_b_1.y + 40, ball_b_2.v*ball_b_2.v*ball2_m*2, 20).endFill();
+			g.beginFill("#f00").drawRect(520, ball_c_1.y + 40, ball_c_1.v*ball_c_1.v*ball1_m*2, 20).endFill();
+			g.beginFill("#00f").drawRect(520+ball_c_1.v*ball_c_1.v*ball1_m*2, ball_c_1.y + 40, ball_c_2.v*ball_c_2.v*ball2_m*2, 20).endFill();
+		}
+		if (document.getElementById("wpoint").checked){
+			g.beginFill("#fff").drawCircle(offseta + 1.0 * (ball_a_1.x * ball1_m + ball_a_2.x * ball2_m) / (ball1_m + ball2_m), ball_a_1.y, 6).endFill();
+			g.beginFill("#000").drawCircle(offseta + 1.0 * (ball_a_1.x * ball1_m + ball_a_2.x * ball2_m) / (ball1_m + ball2_m), ball_a_1.y, 5).endFill();
+			g.beginFill("#fff").drawCircle(offsetb + 1.0 * (ball_b_1.x * ball1_m + ball_b_2.x * ball2_m) / (ball1_m + ball2_m), ball_b_1.y, 6).endFill();
+			g.beginFill("#000").drawCircle(offsetb + 1.0 * (ball_b_1.x * ball1_m + ball_b_2.x * ball2_m) / (ball1_m + ball2_m), ball_b_1.y, 5).endFill();
+			g.beginFill("#fff").drawCircle(offsetc + 1.0 * (ball_c_1.x * ball1_m + ball_c_2.x * ball2_m) / (ball1_m + ball2_m), ball_c_1.y, 6).endFill();
+			g.beginFill("#000").drawCircle(offsetc + 1.0 * (ball_c_1.x * ball1_m + ball_c_2.x * ball2_m) / (ball1_m + ball2_m), ball_c_1.y, 5).endFill();
+		}
+	}
+	
+	objects.push(ball_a_1);
+	objects.push(ball_b_1);
+	objects.push(ball_c_1);
+	objects.push(ball_a_2);
+	objects.push(ball_b_2);
+	objects.push(ball_c_2);
+	objects.push(momentum);
+	
+	reset();
+	
+}
+
+function update(event){
+	if (is_running){
+	}
+	
+	for(var i=0; i<objects.length; i++){
+		objects[i].update();
+	}
+	stage.update();
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

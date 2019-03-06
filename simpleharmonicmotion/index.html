@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<title>等速円運動と単振動</title>
+	<meta name="description" content="等速円運動と単振動" />
+	<meta name="keywords" content="等速円運動と単振動" />
+	<link rel="stylesheet" type="text/css" href="../style/default.css" />
+	<!--[if lt IE 9]>
+	<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	<script src="../scripts/Slider.js" type="text/javascript"></script>
+	<script src="script.js"></script>
+</head>
+<body>
+	<div id="canvas">
+		<canvas width="960" height="600" id="stage">
+			Canvas 要素に非対応のブラウザでは表示できません。
+		</canvas>
+	</div>
+	<form>
+		<p>　　
+			<input type="button" onclick="reset_();" value="リセット" />　　
+			<input type="checkbox" id="velocity_vector" name="velocity_vector" /><label for="velocity_vector">速度ベクトル</label>　
+			<input type="checkbox" id="acceleration_vector" name="acceleration_vector" /><label for="acceleration_vector">加速度ベクトル</label>　
+			<input type="checkbox" id="line" name="line" /><label for="line">補助線</label>　
+		</p>
+	</form>
+	<h1>等速円運動と単振動</h1>
+	<p class="image">
+		<img src="ball.png" />
+		<img src="bane.png" />
+	</p>
+</body>
+</html>

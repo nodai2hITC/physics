@@ -1,0 +1,110 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>波の干渉</title>
+		<meta name="description" content="波の干渉" />
+		<meta name="keywords" content="波の干渉" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+	</head>
+	<body>
+		<canvas id="stage" width="640" height="480">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<input type="button" value="停止" id="stop" onclick="stop_or_start();" />
+			<input type="button" value="リセット" id="reset" onclick="reset_wave();" />
+			　波長：<input type="range" id="lamda" min="20" max="1000" value="240" /> 
+			　波の速さ：<input type="range" id="v" min="10" max="200" value="50" /> 
+		</form>
+	<script type="text/javascript">
+
+var t = 0;
+var lamda = 240;
+var v = 5;
+var T = lamda / v;
+var source1_x =  50, source1_y = 240;
+var source2_x = 590, source2_y = 240;
+
+var canvas = document.getElementById("stage");
+var canvasWidth  = canvas.width;
+var canvasHeight = canvas.height;
+var ctx = canvas.getContext("2d");
+var canvasData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+var timer = null;
+
+function drawPixel(x, y, r, g, b){
+	var index = (x + y * canvasWidth) << 2;
+	
+	canvasData.data[index    ] = r;
+	canvasData.data[index + 1] = g;
+	canvasData.data[index + 2] = b;
+	canvasData.data[index + 3] = 255;
+}
+
+function updateCanvas(){
+	ctx.putImageData(canvasData, 0, 0);
+}
+
+function updateWaves(){
+	var d1, d2, x, y, index, a;
+	for(var x=0; x<canvasWidth; x++){
+		for(var y=0; y<canvasHeight; y++){
+			d1 = Math.sqrt((source1_x - x) * (source1_x - x) + (source1_y - y) * (source1_y - y));
+			d2 = Math.sqrt((source2_x - x) * (source2_x - x) + (source2_y - y) * (source2_y - y));
+			a = (d1 > t * v ? 0 : Math.sin(2 * Math.PI * (t / T - d1 / lamda)) * 127) +
+			    (d2 > t * v ? 0 : Math.sin(2 * Math.PI * (t / T - d2 / lamda)) * 127);
+			drawPixel(x, y, a > 0 ? 255 - a : 255, 255 + (a > 0 ? -a : a), a < 0 ? 255 + a : 255);
+		}
+	}
+	updateCanvas();
+	
+	ctx.beginPath();
+	ctx.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx.arc(source1_x, source1_y, 5, 0, Math.PI*2, true); 
+	ctx.closePath();
+	ctx.fill();
+	ctx.beginPath();
+	ctx.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx.arc(source2_x, source2_y, 5, 0, Math.PI*2, true); 
+	ctx.closePath();
+	ctx.fill();
+	t++;
+}
+
+function stop_or_start(){
+	if (timer){
+		window.clearInterval(timer);
+		timer = null;
+		document.getElementById("stop").value = "再開";
+	} else {
+		timer = window.setInterval(updateWaves, 50);
+		document.getElementById("stop").value = "停止";
+	}
+}
+
+function reset_wave(){
+	lamda = parseInt(document.getElementById("lamda").value);
+	v     = 0.1 * parseInt(document.getElementById("v").value);
+	T = lamda / v;
+	t = 0;
+}
+
+(function(window){
+	function init(){
+		timer = window.setInterval(updateWaves, 50);
+	}
+	
+	window.addEventListener("load", function(){
+		init();
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

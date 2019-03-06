@@ -1,0 +1,253 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>縦波</title>
+		<meta name="description" content="縦波" />
+		<meta name="keywords" content="縦波" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="500">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<p>　
+				<input type="checkbox" id="mark" name="mark" />
+				<label for="mark">マークを表示</label>　
+				<input type="checkbox" id="arrow" name="arrow" />
+				<label for="arrow">縦波上に矢印を表示</label>　
+				<input type="checkbox" id="arrow2" name="arrow2" />
+				<label for="arrow2">回転した矢印を表示</label>　
+				<input type="checkbox" id="n_wave" name="n_wave" />
+				<label for="n_wave">横波を表示</label>
+			</p>
+		</form>
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "mark1", src: "mark1.png" },
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton" , src: "stopbutton.png" },
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+var stage;
+var time = 0;
+var x_max = 0;
+
+var dx = 4;
+var x0 = -100;
+var x1 = 1000;
+var v  = 3;
+var wave_A = 60;
+var spring_A = 40;
+var spring_y = 25;
+var lamda = 400;
+var spring_dx = 20;
+
+var line, wave, spring, spring2, mark, arrow;
+var mark_visible   = true
+var n_wave_visible = true;
+var arrow_visible  = true;
+var arrow2_visible = true;
+var start_button, reset_button;
+
+var mode = "normal";
+
+var is_running = true;
+
+function reset_stage(){
+	x_max = 0;
+	time = 0;
+}
+
+function my_init(){
+	line   = add_shape({ x: 0, y: 0 });
+	line.graphics.clear().setStrokeStyle(1).beginStroke("#999");
+	for(var x = 0; x < x1; x += lamda / 4){
+		line.graphics.moveTo(x, 100).lineTo(x, 999);
+	}
+	line.graphics.endStroke();
+	
+	wave    = add_shape({ x: 0, y: 380 });
+	spring  = add_shape({ x: 0, y: 230 });
+	spring2 = add_shape({ x: 0, y: 150 });
+	
+	startbutton = add_image("stopbutton.png", { regX: 24, regY: 24, x: 50 , y: 50,
+		images: [(new createjs.Bitmap( "stopbutton.png")).image,
+		         (new createjs.Bitmap("startbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = this.images[is_running ? 0 : 1];
+		}
+	});
+	resetbutton = add_image("resetbutton.png", { regX: 24, regY: 24, x: 120 , y: 50,
+		onMouseDown: function(evt){
+			reset_stage();
+		}
+	});
+	
+	text_v   = add_text("波の速さ：3.0", "24px Meiryo", "#000", { x: 470, y: 30 })
+	slider_v = add_slider(1.0, 9.9, 200, 30, {x: 260, y: 34, value: 3.0,
+		onChange: function(evt){
+			val = (evt.target.value.toString() + ".0").substr(0, 3);
+			text_v.text = "波の速さ：" + val;
+			v = evt.target.value;
+			reset_stage();
+		},
+		onDblClick: function(e){ this.value = 3.0; this.onChange(e)}
+	});
+	
+	reset_stage();
+}
+
+function update(event){
+	mark_visible   = document.getElementById("mark"  ).checked;
+	n_wave_visible = document.getElementById("n_wave").checked;
+	arrow_visible  = document.getElementById("arrow" ).checked;
+	arrow2_visible = document.getElementById("arrow2").checked;
+	if (is_running){
+		time += 1;
+		x_max = v * time;
+	}
+	
+	var g;
+	var max_x = x_max > x1 ? x1 : x_max;
+	var k = 6.283185307179586 * v / lamda;
+	var y;
+	
+	g = wave.graphics;
+	g.clear();
+	// 波形
+	if (n_wave_visible){
+		g.setStrokeStyle(1).beginStroke("#ccc").moveTo(x0, 0).lineTo(x1, 0).endStroke();
+		g.setStrokeStyle(4).beginStroke("#000").moveTo(x0, 0);
+		for(var x=0; x <= max_x; x += dx){
+			g.lineTo(x, -wave_A * Math.sin(k * (time - x / v)));
+		}
+		g.lineTo(x_max, 0).lineTo(x1, 0);
+		g.endStroke();
+	}
+		
+	if (arrow2_visible){
+		g.setStrokeStyle(4).beginStroke("#f00");
+		for(var x = 0; x < x1; x += lamda / 4){
+			y = x < x_max ? -wave_A * Math.sin(k * (time - x / v)) : 0;
+			if (y > 3 || y < -3){
+				g.moveTo(x, 0).lineTo(x, y).lineTo(x - 8, y + (y > 0 ? -8 : 8)).moveTo(x, y).lineTo(x + 8, y + (y > 0 ? -8 : 8));
+			}
+		}
+		g.endStroke();
+	}
+	
+	// バネ
+	g = spring.graphics;
+	y = spring_y;
+	g.clear();
+	g.setStrokeStyle(2).beginStroke("#000").moveTo(x0, y);
+	for(var x = x0 + spring_dx / 2; x < x1; x += spring_dx){
+		y = - y;
+		g.lineTo(x + (x < x_max ? spring_A * Math.sin(k * (time - x / v)) : 0), y);
+	}
+	g.lineTo(x1, -y);
+	g.endStroke();
+	
+	if (mark_visible){
+		g.beginFill("#090");
+		for(var x = 0; x < x1; x += lamda / 4){
+			g.drawCircle(x + (x < x_max ? spring_A * Math.sin(k * (time - x / v)) : 0), 0, 8);
+		}
+		g.endFill();
+	}
+	if (arrow_visible){
+		g.setStrokeStyle(4).beginStroke("#f00");
+		for(var x = 0; x < x1; x += lamda / 4){
+			x2 = x + (x < x_max ? spring_A * Math.sin(k * (time - x / v)) : 0);
+			if (x2 - x > 3 || x2 - x < -3){
+				g.moveTo(x, 0).lineTo(x2, 0).lineTo(x2 + (x2 > x ? -8 : 8), -8).moveTo(x2, 0).lineTo(x2 + (x2 > x ? -8 : 8), 8);
+			}
+		}
+		g.endStroke();
+	}
+	
+	// 元のバネ
+	g = spring2.graphics;
+	y = spring_y;
+	g.clear().setStrokeStyle(2).beginStroke("#000").moveTo(x0, y)
+	for(var x = x0 + spring_dx / 2; x < x1; x += spring_dx){
+		y = -y;
+		g.lineTo(x, y);
+	}
+	g.lineTo(x1, -y).endStroke();
+	
+	if (mark_visible){
+		g.beginFill("#090");
+		for(var x = 0; x < x1; x += lamda / 4){
+			g.drawCircle(x, 0, 8);
+		}
+		g.endFill();
+	}
+	
+	stage.update();
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

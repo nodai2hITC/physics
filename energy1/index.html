@@ -1,0 +1,480 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>力学的エネルギー保存の法則 (1)</title>
+		<meta name="description" content="力学的エネルギー保存の法則 (1)" />
+		<meta name="keywords" content="力学的エネルギー保存の法則 (1)" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="500" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+var stage;
+var time = 0;
+
+var obj, obj_v_text;
+var objects = [];
+var hill1, hill1_h_text;
+var hill2, hill2_h_text;
+var energy_shape;
+var ground;
+var   text_time,   text_mass,   text_hill1,   text_hill2,   text_friction;
+var slider_time, slider_mass, slider_hill2, slider_hill2, slider_friction;
+var friction;
+var buttons = [];
+var mode = "normal";
+var energy = 0;
+var metre = 100;
+var gravity = 1.96;
+
+var is_running = true;
+
+function reset(){
+	slider_time.value = 1.0;
+	slider_time.onChange({target: slider_time});
+	slider_mass.value = 5.0;
+	slider_mass.onChange({target: slider_mass});
+	slider_hill1.value = 260;
+	slider_hill1.onChange({target: slider_hill1});
+	slider_hill2.value = 260;
+	slider_hill2.onChange({target: slider_hill2});
+	slider_friction.value = 0;
+	slider_friction.onChange({target: slider_friction});
+	
+	obj.x = obj.x_0 = 450;
+	obj.y = 260;
+	obj.size = 30;
+	obj.k = 0;
+	obj.v = 0;
+	
+	time = 0;
+	mode = "normal";
+	
+	energy = 0;
+}
+
+function my_init(){
+	text_time   = add_text("　　時間：×1.00", "24px Meiryo", "#000", { x: 20, y: 300 })
+	slider_time = add_slider(0, 2.0, 200, 30, {x: 260, y: 300, value: 1.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 100).toString();
+			val = val.substr(-3, 1) + "." + val.substr(-2);
+			text_time.text = "　　時間：×" + val;
+		},
+		onDblClick: function(e){ this.value = 1.0; this.onChange(e)}
+	});
+	
+	text_mass   = add_text("　　質量：5.0 kg", "24px Meiryo", "#000", { x: 20, y: 340 })
+	slider_mass = add_slider(1, 9, 200, 30, {x: 260, y: 340, value: 5.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			text_mass.text = "　　質量：" + val + " kg";
+		},
+		onDblClick: function(e){ this.value = 5.0; this.onChange(e)}
+	});
+	
+	text_hill1   = add_text("坂１の傾斜：", "24px Meiryo", "#000", { x: 20, y: 380 })
+	slider_hill1 = add_slider(10, 520, 200, 30, {x: 260, y: 380, value: 260,
+		onChange: function(evt){
+		},
+		onDblClick: function(e){ this.value = 260; this.onChange(e)}
+	});
+	text_hill2   = add_text("坂２の傾斜：", "24px Meiryo", "#000", { x: 20, y: 420 })
+	slider_hill2 = add_slider(10, 520, 200, 30, {x: 260, y: 420, value: 260,
+		onChange: function(evt){
+		},
+		onDblClick: function(e){ this.value = 260; this.onChange(e)}
+	});
+	
+	text_friction   = add_text("動摩擦係数：", "24px Meiryo", "#000", { x: 20, y: 460 })
+	slider_friction = add_slider(0, 1.0, 200, 30, {x: 260, y: 460, value: 0,
+		onChange: function(evt){
+			val = parseInt(evt.target.value * 100);
+			if (val == 100) val = "1.00";
+			else            val = "0." + (val < 10 ? "0" : "") + val.toString();
+			text_friction.text = "動摩擦係数：" + val;
+		},
+		onDblClick: function(e){ this.value = 0; this.onChange(e)}
+	});
+	
+	
+	buttons.push(add_image("resetbutton.png", { regX: 24, regY: 24, x: 340 , y: 40,
+		onMouseDown: function(evt){
+			reset();
+		}
+	}));
+	
+	friction = add_shape({ x: 0, y: 0 });
+	
+	friction.moving  = function(obj){}
+	friction.handoff = function(obj){}
+	friction.update  = function(obj){
+		var g = this.graphics;
+		var r = ("0"+(255 - parseInt(slider_friction.value * 128)).toString(16)).slice(-2, 999);
+		g.clear().beginFill("#"+r+r+r).drawRect(350, 260, 200, 20).endFill();
+		if (mode == this){
+//			g.beginFill("#999").drawRect(100, 100, 10, 10).endFill();
+		}
+	}
+	friction.hit_check = function(obj){
+		if (obj.v == 0 || obj.x < 350 || obj.x > 550) return false;
+		
+		obj.x_0 = obj.v > 0 ? 350 : 550;
+		obj.v_0 = obj.v;
+		time = (obj.x - obj.x_0) / obj.v / metre;
+		
+		mode = this;
+		this.obj_move(obj);
+		return true;
+	}
+	friction.obj_move = function(obj){
+		var a = (obj.v_0 > 0 ? -1 : 1) * gravity * slider_friction.value;
+		if (time > -obj.v_0 / a){
+			time = -obj.v_0 / a
+			obj.x = obj.x_0 + obj.v_0 * time * metre + a * time * time * metre / 2;
+			energy = 0;
+		} else {
+			obj.x = obj.x_0 + obj.v_0 * time * metre + a * time * time * metre / 2;
+			energy = slider_mass.value * obj.v_0 * obj.v_0 / 2 - Math.abs((obj.x - obj.x_0) * a * slider_mass.value / metre);
+		}
+		obj.v = Math.sqrt(energy * 2 / slider_mass.value);
+		if (obj.x < 350 || obj.x > 550 || energy == 0){
+			time = 0;
+			obj.x_0 = obj.x;
+			obj.v = (obj.x < 400 ? -1 : 1) * Math.sqrt(energy * 2 / slider_mass.value);
+			mode = "normal";
+		}
+	};
+	friction.energy = function(){ return 0; }
+	friction.color = "#fff";
+	objects.push(friction);
+	
+	ground = add_shape({ x: 0, y: 0 });
+	ground.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(315	, 260).lineTo(585, 260).endStroke();
+	
+	energy_shape = add_shape({ x: 500, y: 300 });
+	energy_shape.update = function(objects){
+		var g = this.graphics;
+		g.clear().beginFill("#f00").drawRect(0, 0, energy * 9.0, 40);
+		var x = 0;
+		for(var i=0; i<objects.length; i++){
+			var e = objects[i].energy();
+			if (e > 0){
+				g.beginFill(objects[i].color).drawRect(x, 0, e*9, 40);
+				x += e*9;
+			}
+		}
+		g.endFill();
+	};
+	
+	hill1 = add_shape({ x: 000, y: 260 });
+	hill1.moving = function(obj){
+		if (obj.x >= 300) return false;
+		
+		energy = gravity * (300 - obj.x) * slider_hill1.value / 300.0 / metre * slider_mass.value;
+		return true;
+	};
+	hill1.handoff = function(obj){
+		if (obj.x >= 300) return false;
+		
+		obj.x_0 = obj.x;
+		obj.v_0 = 0;
+		time = 0;
+		energy = gravity * (300 - obj.x) * slider_hill1.value / 300.0 / metre * slider_mass.value;
+		
+		mode = this;
+		return true;
+	};
+	hill1.hit_check = function(obj){
+		if (obj.x >= 300) return false;
+		
+		obj.x_0 = 300;
+		obj.v_0 = obj.v * 300.0 / Math.sqrt(slider_hill1.value * slider_hill1.value + 300.0 * 300.0);
+		time = -(300 - obj.x) / obj.v / metre;
+		
+		mode = this;
+		this.obj_move(obj);
+		return true;
+	};
+	hill1.obj_move = function(obj){
+		var c2 = slider_hill1.value * slider_hill1.value + 300.0 * 300.0;
+		var a = gravity * slider_hill1.value * 300.0 / c2;
+		obj.x = obj.x_0 + obj.v_0 * time * metre + a * time * time * metre / 2;
+		obj.v = (obj.v_0 + time * a) * Math.sqrt(c2) / 300;
+		if (obj.x > 300){
+			time = 0;
+			obj.x_0 = 300;
+			var h = (300 - obj.x) * slider_hill1.value / 300.0;
+			obj.v = Math.sqrt(energy * 2 / slider_mass.value);
+			mode = "normal";
+		}
+	};
+	hill1.update = function(){
+		if (obj.x < 300 - obj.size/2){
+			obj.k = -slider_hill1.value / 300.0;
+		} else if (obj.x < 300 + obj.size/2){
+			obj.k = -slider_hill1.value / 300.0 * (300 - obj.x + obj.size/2) / obj.size;
+			obj.y = 260;
+		} else if (obj.x < 450){
+			obj.k = 0;
+			obj.y = 260;
+		}
+		if (obj.x < 300){
+			var h = (300 - obj.x) * slider_hill1.value / 300.0;
+			obj.y = 260 - h;
+			var val = "00" + parseInt(h / metre * 20).toString();
+			val = val.substr(-3, 1) + "." + val.substr(-2);
+			hill1_h_text.text = val + " m";
+			hill1_h_text.visible = true;
+		} else {
+			hill1_h_text.visible = false;
+		}
+		var g = this.graphics;
+		var h = slider_hill1.value;
+		g.clear();
+		g.setStrokeStyle(2).beginStroke("#000");
+		g.moveTo(315, 0).quadraticCurveTo(300, 0, 285, -h/20).lineTo(0, -h)
+		g.endStroke();
+	};
+	hill1.energy = function(){
+		if (obj.x >= 300) return 0;
+		var h = 260 - obj.y;
+		return gravity * h / metre * slider_mass.value;
+	}
+	hill1.color = "#00f";
+	hill1_h_text = add_text("aaa", "20px Meiryo", "#000", { x: 20, y: 250, visible: false });
+	
+	hill2 = add_shape({ x: 600, y: 260 });
+	hill2.moving = function(obj){
+		if (obj.x <= 600) return false;
+		
+		energy = gravity * (obj.x - 600) * slider_hill2.value / 300.0 / metre * slider_mass.value;
+		return true;
+	};
+	hill2.handoff = function(obj){
+		if (obj.x <= 600) return false;
+		
+		obj.x_0 = obj.x;
+		obj.v_0 = 0;
+		time = 0;
+		energy = gravity * (obj.x - 600) * slider_hill2.value / 300.0 / metre * slider_mass.value;
+		
+		mode = this;
+		return true;
+	};
+	hill2.hit_check = function(obj){
+		if (obj.x <= 600) return false;
+		
+		obj.x_0 = 600;
+		obj.v_0 = obj.v * 300.0 / Math.sqrt(slider_hill2.value * slider_hill2.value + 300.0 * 300.0);
+		time = (obj.x - 600) / obj.v / metre;
+		
+		mode = this;
+		this.obj_move(obj);
+		return true;
+	};
+	hill2.obj_move = function(obj){
+		var c2 = slider_hill2.value * slider_hill2.value + 300.0 * 300.0;
+		var a = gravity * slider_hill2.value * 300.0 / c2;
+		obj.x = obj.x_0 + obj.v_0 * time * metre - a * time * time * metre / 2;
+		obj.v = (obj.v_0 - time * a) * Math.sqrt(c2) / 300;
+		if (obj.x < 600){
+			time = 0;
+			obj.x_0 = 600;
+			var h = (obj.x - 600) * slider_hill2.value / 300.0;
+			obj.v = -Math.sqrt(energy * 2 / slider_mass.value);
+			mode = "normal";
+		}
+	};
+	hill2.update = function(){
+		if (obj.x > 600 + obj.size/2){
+			obj.k = slider_hill2.value / 300.0;
+		} else if (obj.x > 600 - obj.size/2){
+			obj.k = slider_hill2.value / 300.0 * (obj.x - 600 + obj.size/2) / obj.size;
+			obj.y = 260;
+		} else if (obj.x > 450){
+			obj.k = 0;
+			obj.y = 260;
+		}
+		if (obj.x > 600){
+			var h = (obj.x - 600) * slider_hill2.value / 300.0;
+			obj.y = 260 - h;
+			var val = "00" + parseInt(h / metre * 20).toString();
+			val = val.substr(-3, 1) + "." + val.substr(-2);
+			hill2_h_text.text = val + " m";
+			hill2_h_text.visible = true;
+		} else {
+			hill2_h_text.visible = false;
+		}
+		var g = this.graphics;
+		var h = slider_hill2.value;
+		g.clear();
+		g.setStrokeStyle(2).beginStroke("#000");
+		g.moveTo(-15, 0).quadraticCurveTo(0, 0, 15, -h/20).lineTo(300, -h)
+		g.endStroke();
+	};
+	hill2.energy = function(){
+		if (obj.x <= 600) return 0;
+		var h = 260 - obj.y;
+		return gravity * h / metre * slider_mass.value;
+	}
+	hill2.color = "#00f";
+	hill2_h_text = add_text("aaa", "20px Meiryo", "#000", { x: 800, y: 250, visible: false });
+	
+	objects.push(hill1);
+	objects.push(hill2);
+	
+	obj = add_shape({ x: 450, x_0: 450, y: 260, size: 30, k: 0, v: 0, 
+		onMouseDown: function(evt){
+			if (! is_running) return;
+			this.v = 0;
+			mode = "moving";
+		},
+		onPressMove: function(evt){
+			if (! is_running) return;
+			this.x = evt.stageX;
+			return false;
+		},
+		onPressUp: function(evt){
+			if (! is_running) return;
+			this.v = 0;
+			mode = "handoff";
+		}
+	 });
+	obj.update = function(){
+		if (this.v != 0){
+			val = "00" + parseInt(Math.abs(obj.v) * 100).toString();
+			val = val.slice(-3, -2) + "." + val.substr(-2);
+			if (obj.v >= 10.0) val = parseInt(obj.v / 10).toString() + val;
+			obj_v_text.text = val + " m/s"
+			obj_v_text.x = this.x - 40;
+			obj_v_text.y = this.y - 70;
+		}
+		obj_v_text.visible = (this.v != 0);
+		
+		var g = this.graphics;
+		var dy = this.k;
+		var dx = 1;
+		var d = Math.sqrt(1 + dy*dy);
+		dx = dx / d / 2 * this.size;
+		dy = dy / d / 2 * this.size;
+		g.clear();
+		g.setStrokeStyle(2).beginStroke("#000").beginFill("#aaf");
+		g.moveTo(-dx, dy).lineTo(dx, -dy).lineTo(dx-dy*2,-dy-dx*2).lineTo(-dy*2-dx,dy-dx*2).lineTo(-dx,dy);
+		g.endStroke().endFill();
+	};
+	obj_v_text = add_text("", "20px Meiryo", "#000", { x: 0, y: 0, visible: false });
+	
+	reset();
+}
+
+function update(event){
+	if (is_running){
+		switch (mode){
+		case "normal":
+			var dt = slider_time.value / 60.0;
+			time += dt;
+			obj.x = obj.x_0 + obj.v * metre * time;
+			for(var i=0; i<objects.length; i++){
+				if (objects[i].hit_check(obj)) break;
+			}
+			break;
+		case "moving":
+			var flag = false;
+			for(var i=0; i<objects.length; i++){
+				flag = flag || objects[i].moving(obj);
+			}
+			if (!flag) energy = 0;
+			break;
+		case "handoff":
+			for(var i=0; i<objects.length; i++){
+				if (objects[i].handoff(obj)) break;
+			}
+			break;
+		default:
+			var dt = slider_time.value / 60.0;
+			time += dt;
+			mode.obj_move(obj);
+		}
+	}
+	
+	for(var i=0; i<objects.length; i++){
+		objects[i].update(obj);
+	}
+	obj.update();
+	energy_shape.update(objects);
+	
+	stage.update();
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

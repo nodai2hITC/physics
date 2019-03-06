@@ -1,0 +1,297 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>RLC直列回路</title>
+		<meta name="description" content="RLC直列回路" />
+		<meta name="keywords" content="RLC直列回路" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="960" height="620" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+	<form>
+		<p>
+			<input type="checkbox" id="wave1" name="wave1" checked="checked" /><label for="wave1">各電流</label>　
+			<input type="checkbox" id="wave2" name="wave2" /><label for="wave2">電力</label>　
+			<input type="checkbox" id="wave3" name="wave3" /><label for="wave3">各電圧</label>　
+			<input type="checkbox" id="wave4" name="wave4" checked="checked" /><label for="wave4">合計電圧</label>　
+			<input type="checkbox" id="wave5" name="wave5" /><label for="wave5">ベクトル表現</label>
+		</p>
+	</form>
+	<script type="text/javascript">
+
+var wave_minx = 2;
+var omega_c = 0.001, i_c = 0.5;
+
+var manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+];
+
+var stage;
+
+var circuit_shape;
+var r_wave, l_wave, c_wave, i_wave;
+var buttons = [];
+var text_omega, slider_omega;
+var time = 0;
+
+var is_running = true;
+var is_editing = false;
+
+function my_init(){
+	circuit_shape = add_shape({ x: 30, y: 230 })
+	var g = circuit_shape.graphics;
+	g.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0);
+	g.lineTo(78, 0).lineTo(78, -20).lineTo(222, -20).lineTo(222, 20).lineTo(78, 20).lineTo(78, 0).moveTo(222, 0).lineTo(300, 0);
+	g.lineTo(378, 0).arc(396, 0, 18, Math.PI, 0).arc(432, 0, 18, Math.PI, 0).arc(468, 0, 18, Math.PI, 0).arc(504, 0, 18, Math.PI, 0).lineTo(600, 0);
+	g.lineTo(740, 0).moveTo(740, -20).lineTo(740, 20).moveTo(760, -20).lineTo(760, 20).moveTo(760, 0).lineTo(900, 0);
+	g.lineTo(900, 100).lineTo(480, 100).drawCircle(450, 100, 30).moveTo(420, 100).lineTo(0, 100).lineTo(0,0);
+	g.moveTo(424, 100).arc(437, 100, 13, Math.PI, 0).moveTo(476, 100).arc(463, 100, 13, 0, Math.PI);
+	
+	r_wave = add_shape({ x:  30, y: 100 });
+	l_wave = add_shape({ x: 330, y: 100 });
+	c_wave = add_shape({ x: 630, y: 100 });
+	i_wave = add_shape({ x: 330, y: 460 });
+	r_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	l_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	c_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	i_wave.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	
+	text_omega   = add_text("角周波数：", "36px Meiryo", "#000", { x: 200, y: 565 });
+	slider_omega = add_slider(50, 200, 500, 48, {x: 380, y: 565, value: 100,
+		onChange:   function(evt){ reset(); },
+		onDblClick: function(evt){ this.value = 100; this.onChange(evt)}
+	});
+	
+	buttons.push(add_image("stopbutton.png", { regX: 24, regY: 24, x: 50 , y: 580,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+	
+	reset();
+}
+
+function reset(){
+	time = 0;
+}
+
+function update(event){
+	var rg, lg, cg, ig;
+	var omega = slider_omega.value;
+	var z = Math.sqrt(1 + (100/omega - omega/100) * (100/omega - omega/100));
+	var alpha = Math.atan(omega/100 - 100/omega);
+	var wave1 = document.getElementById("wave1").checked;
+	var wave2 = document.getElementById("wave2").checked;
+	var wave3 = document.getElementById("wave3").checked;
+	var wave4 = document.getElementById("wave4").checked;
+	var wave5 = document.getElementById("wave5").checked;
+	
+	rg = r_wave.graphics;
+	rg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	rg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	rg.setStrokeStyle(3).beginStroke("#f00").moveTo(0, 60 / z * Math.sin(omega_c * omega * time - alpha));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		rg.lineTo(i, 60 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+	}
+	if (wave2){
+		rg.setStrokeStyle(2).beginStroke("#f99").moveTo(0, -60 / z * Math.sin(omega_c * omega * time - alpha) * 80 / z * Math.sin(omega_c * omega * time - alpha) / 70);
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			rg.lineTo(i, -60 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha) * 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha) / 70)
+		}
+	}
+	if (wave1){
+		rg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 / z * Math.sin(omega_c * omega * time - alpha));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			rg.lineTo(i, 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+		}
+	}
+	if (wave5){
+		rg.setStrokeStyle(3).beginStroke("#900").moveTo(150, 0);
+		rg.lineTo(150 - 60 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		rg.setStrokeStyle(1).moveTo(150 - 60 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		rg.setStrokeStyle(2).beginStroke("#000").moveTo(150, 0);
+		rg.lineTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		rg.setStrokeStyle(1).moveTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+	}
+	
+	lg = l_wave.graphics;
+	lg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	lg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	lg.setStrokeStyle(3).beginStroke("#0f0").moveTo(0, 60 / z * omega / 100 * Math.sin(omega_c * omega * time - alpha + Math.PI/2));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		lg.lineTo(i, 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*i) - alpha + Math.PI/2))
+	}
+	if (wave2){
+		lg.setStrokeStyle(2).beginStroke("#9f9").moveTo(0, -60 / z * omega / 100 * Math.sin(omega_c * omega * time - alpha + Math.PI/2) * 80 / z * Math.sin(omega_c * omega * time - alpha) / 70);
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			lg.lineTo(i, -60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*i) - alpha + Math.PI/2) * 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha) / 70)
+		}
+	}
+	if (wave1){
+		lg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 / z * Math.sin(omega_c * omega * time - alpha));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			lg.lineTo(i, 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+		}
+	}
+	if (wave5){
+		lg.setStrokeStyle(3).beginStroke("#090").moveTo(150, 0)
+		lg.lineTo(150 - 60 / z * omega / 100 * Math.cos(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2) , 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2))
+		lg.setStrokeStyle(1).moveTo(150 - 60 / z * omega / 100 * Math.cos(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2) , 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2)).lineTo(150, 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2));
+		lg.setStrokeStyle(2).beginStroke("#000").moveTo(150, 0);
+		lg.lineTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		lg.setStrokeStyle(1).moveTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+	}
+	
+	cg = c_wave.graphics;
+	cg.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	cg.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	cg.setStrokeStyle(3).beginStroke("#00f").moveTo(0, 6000 / z / omega * Math.sin(omega_c * omega * time - alpha - Math.PI/2));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		cg.lineTo(i, 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*i) - alpha - Math.PI/2))
+	}
+	if (wave2){
+		cg.setStrokeStyle(2).beginStroke("#99f").moveTo(0, -6000 / z / omega * Math.sin(omega_c * omega * time - alpha - Math.PI/2) * 80 / z * Math.sin(omega_c * omega * time - alpha) / 70);
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			cg.lineTo(i, -6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*i) - alpha - Math.PI/2) * 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha) / 70)
+		}
+	}
+	if (wave1){
+		cg.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 / z * Math.sin(omega_c * omega * time - alpha));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			cg.lineTo(i, 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+		}
+	}
+	if (wave5){
+		cg.setStrokeStyle(3).beginStroke("#009").moveTo(150, 0);
+		cg.lineTo(150 - 6000 / z / omega * Math.cos(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2) , 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2));
+		cg.setStrokeStyle(1).moveTo(150 - 6000 / z / omega * Math.cos(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2) , 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2)).lineTo(150, 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2));
+		cg.setStrokeStyle(2).beginStroke("#000").moveTo(150, 0);
+		cg.lineTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		cg.setStrokeStyle(1).moveTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+	}
+	
+	ig = i_wave.graphics;
+	ig.clear().setStrokeStyle(1).beginStroke("#999").moveTo(0, 0).lineTo(300, 0).moveTo(150, -90).lineTo(150, 90);
+	ig.setStrokeStyle(2).beginStroke("#000").moveTo(0, 0).drawRect(0, -90, 300, 180);
+	ig.setStrokeStyle(1).beginStroke("#000").moveTo(0, 80 / z * Math.sin(omega_c * omega * time - alpha));
+	for(var i=wave_minx; i<=300; i+=wave_minx){
+		ig.lineTo(i, 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+	}
+	if (wave3){
+		ig.setStrokeStyle(2).beginStroke("#f00").moveTo(0, 60 / z * Math.sin(omega_c * omega * time - alpha));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			ig.lineTo(i, 60 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha))
+		}
+		ig.setStrokeStyle(2).beginStroke("#0f0").moveTo(0, 60 / z * omega / 100 * Math.sin(omega_c * omega * time - alpha + Math.PI/2));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			ig.lineTo(i, 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*i) - alpha + Math.PI/2))
+		}
+		ig.setStrokeStyle(2).beginStroke("#00f").moveTo(0, 6000 / z / omega * Math.sin(omega_c * omega * time - alpha - Math.PI/2));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			ig.lineTo(i, 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*i) - alpha - Math.PI/2))
+		}
+	}
+	if (wave4){
+		ig.setStrokeStyle(3).beginStroke("#909").moveTo(0, 60 * Math.sin(omega_c * omega * time));
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			ig.lineTo(i, 60 * Math.sin(omega_c * omega * (time + i_c*i)))
+		}
+	}
+	if (wave2){
+		ig.setStrokeStyle(2).beginStroke("#f9f").moveTo(0, -60 * Math.sin(omega_c * omega * time) * 80 / z * Math.sin(omega_c * omega * time - alpha) / 70);
+		for(var i=wave_minx; i<=300; i+=wave_minx){
+			ig.lineTo(i, -60 * Math.sin(omega_c * omega * (time + i_c*i)) * 80 / z * Math.sin(omega_c * omega * (time + i_c*i) - alpha) / 70)
+		}
+	}
+	if (wave5){
+		ig.setStrokeStyle(2).beginStroke("#000").moveTo(150, 0);
+		ig.lineTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		ig.setStrokeStyle(1).moveTo(150 - 80 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 80 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		ig.setStrokeStyle(2).beginStroke("#900").moveTo(150, 0);
+		ig.lineTo(150 - 60 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		ig.setStrokeStyle(1).moveTo(150 - 60 / z * Math.cos(omega_c * omega * (time + i_c*150) - alpha) , 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha)).lineTo(150, 60 / z * Math.sin(omega_c * omega * (time + i_c*150) - alpha));
+		ig.setStrokeStyle(3).beginStroke("#090").moveTo(150, 0)
+		ig.lineTo(150 - 60 / z * omega / 100 * Math.cos(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2) , 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2))
+		ig.setStrokeStyle(1).moveTo(150 - 60 / z * omega / 100 * Math.cos(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2) , 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2)).lineTo(150, 60 / z * omega / 100 * Math.sin(omega_c * omega * (time + i_c*150) - alpha + Math.PI/2));
+		ig.setStrokeStyle(2).beginStroke("#009").moveTo(150, 0);
+		ig.lineTo(150 - 6000 / z / omega * Math.cos(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2) , 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2));
+		ig.setStrokeStyle(1).moveTo(150 - 6000 / z / omega * Math.cos(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2) , 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2)).lineTo(150, 6000 / z / omega * Math.sin(omega_c * omega * (time + i_c*150) - alpha - Math.PI/2));
+		ig.setStrokeStyle(3).beginStroke("#909").moveTo(150, 0);
+		ig.lineTo(150 - 60 * Math.cos(omega_c * omega * (time + i_c*150)) , 60 * Math.sin(omega_c * omega * (time + i_c*150)));
+		ig.setStrokeStyle(1).moveTo(150 - 60 * Math.cos(omega_c * omega * (time + i_c*150)) , 60 * Math.sin(omega_c * omega * (time + i_c*150))).lineTo(150, 60 * Math.sin(omega_c * omega * (time + i_c*150)));
+	}
+	
+	if (is_running) time++;
+	stage.update();
+}
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

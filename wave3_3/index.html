@@ -1,0 +1,137 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>波の干渉</title>
+		<meta name="description" content="波の干渉" />
+		<meta name="keywords" content="波の干渉" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+	</head>
+	<body>
+		<form style="float: right;">
+			<input type="button" value="停止" id="stop" onclick="stop_or_start();" />
+			<input type="button" value="リセット" id="reset" onclick="reset_wave();" />
+		</form>
+		<p>　<canvas id="stage1" width="640" height="300">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas></p>
+		<p>　<canvas id="stage2" width="640" height="300">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas></p>
+	<script type="text/javascript">
+
+var t = 0;
+var lamda = 240;
+var v = 5;
+var T = lamda / v;
+
+var typenum = 1;
+
+var source1_x =  50, source1_y = 150;
+var source2_x = 590, source2_y = 150;
+
+var canvas1 = document.getElementById("stage1");
+var ctx1 = canvas1.getContext("2d");
+var canvasData1 = ctx1.getImageData(0, 0, canvas1.width, canvas1.height);
+var canvas2 = document.getElementById("stage2");
+var ctx2 = canvas2.getContext("2d");
+var canvasData2 = ctx2.getImageData(0, 0, canvas2.width, canvas2.height);
+var timer = null;
+
+function drawPixel(cd, x, y, r, g, b){
+	var index = (x + y * 640) << 2;
+	
+	cd.data[index    ] = r;
+	cd.data[index + 1] = g;
+	cd.data[index + 2] = b;
+	cd.data[index + 3] = 255;
+}
+
+function updateCanvas(){
+	ctx1.putImageData(canvasData1, 0, 0);
+	ctx1.beginPath();
+	ctx1.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx1.arc(source1_x, source1_y, 5, 0, Math.PI*2, true); 
+	ctx1.closePath();
+	ctx1.fill();
+	ctx1.beginPath();
+	ctx1.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx1.arc(source2_x, source2_y, 5, 0, Math.PI*2, true);
+	ctx1.lineWidth = 0.1;
+	ctx1.strokeStyle = "rgba(0, 0, 0, 128)";
+	ctx1.moveTo(0, 150);
+	ctx1.lineTo(640, 150);
+	ctx1.closePath();
+	ctx1.stroke();
+	ctx1.fill();
+	
+	ctx2.putImageData(canvasData2, 0, 0);
+	ctx2.beginPath();
+	ctx2.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx2.arc(source1_x, 150 - Math.sin(6.28318530718 * t / T) * 70, 5, 0, Math.PI*2, true); 
+	ctx2.closePath();
+	ctx2.fill();
+	ctx2.beginPath();
+	ctx2.fillStyle = "rgba(0,255,0, 0.5)";
+	ctx2.arc(source2_x, 150 - Math.sin(6.28318530718 * t / T) * 70, 5, 0, Math.PI*2, true); 
+	ctx2.closePath();
+	ctx2.fill();
+}
+
+function updateWaves(){
+	var d1, d2, x, y, index, a, b;
+	for(var x=0; x<640; x++){
+		for(var y=0; y<300; y++){
+			d1 = Math.sqrt((source1_x - x) * (source1_x - x) + (source1_y - y) * (source1_y - y));
+			d2 = Math.sqrt((source2_x - x) * (source2_x - x) + (source2_y - y) * (source2_y - y));
+			
+			a = (d1 > t * v ? 0 : Math.sin(6.28318530718 * (t / T - d1 / lamda)) * 127) +
+			    (d2 > t * v ? 0 : Math.sin(6.28318530718 * (t / T - d2 / lamda)) * 127);
+			drawPixel(canvasData1, x, y, a > 0 ? 255 - a : 255, 255 + (a > 0 ? -a : a), a < 0 ? 255 + a : 255);
+		}
+		d1 = Math.abs(source1_x - x);
+		d2 = Math.abs(source2_x - x);
+		
+		a = (d1 > t * v ? 0 : Math.sin(6.28318530718 * (t / T - d1 / lamda)) * 127) +
+			(d2 > t * v ? 0 : Math.sin(6.28318530718 * (t / T - d2 / lamda)) * 127);
+		b = -a * 0.5511811 + 150;
+		for(var y=0; y<b; y++) drawPixel(canvasData2, x, y, 128, 128, 128);
+		for(var y=parseInt(b+0.99); y<300; y++) drawPixel(canvasData2, x, y, a > 0 ? 255 - a : 255, 255 + (a > 0 ? -a : a), a < 0 ? 255 + a : 255);
+	}
+	updateCanvas();
+	t++;
+}
+
+function stop_or_start(){
+	if (timer){
+		window.clearInterval(timer);
+		timer = null;
+		document.getElementById("stop").value = "再開";
+	} else {
+		timer = window.setInterval(updateWaves, 50);
+		document.getElementById("stop").value = "停止";
+	}
+}
+
+function reset_wave(){
+	t = 0;
+}
+
+(function(window){
+	function init(){
+		timer = window.setInterval(updateWaves, 50);
+	}
+	
+	window.addEventListener("load", function(){
+		init();
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

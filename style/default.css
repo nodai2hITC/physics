@@ -1,0 +1,30 @@
+body{
+	margin: 0;
+	background-color: #ccc;
+}
+
+div#canvas{
+	margin: 0;
+	padding: 10px;
+	text-align: center;
+}
+canvas{
+	background-color: #fff;
+}
+
+.image{
+	margin-top: 900px;
+}
+
+dl{
+	
+}
+
+dt{
+	float: left;
+	clear: left;
+}
+dd{
+	margin-top: 0.2em;
+	margin-left: 7em;
+}

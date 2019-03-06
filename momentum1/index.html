@@ -1,0 +1,250 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>運動量保存則 (1)</title>
+		<meta name="description" content="運動量保存則 (1)" />
+		<meta name="keywords" content="運動量保存則 (1)" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="500" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "stopbutton", src: "stopbutton.png" }
+];
+
+var stage;
+var time = 0;
+var speed = 1.0;
+var ball1, ball2;
+var ball1_x = 64, ball1_y = 80, ball2_x = 200, ball2_y = 300;
+var ball1_r = 16*1.4, ball2_r = 16, ball1_m = 2, ball2_m = 1;
+var ball1_vx = 5, ball1_vy = 3, ball2_vx = 1, ball2_vy = -3;
+var ball1_m_slider, ball2_m_slider, speed_slider;
+var ball1_m_text, ball2_m_text, speed_text;
+var msize = 10;
+var momentum, wall;
+var objects = [];
+var stop_button;
+
+var is_running = false;
+
+function reset(){
+}
+
+function drawArrow(g, x, y, x2, y2, color, weight){
+	var vx = x2 - x, vy = y2 - y;
+	var v = Math.sqrt(vx*vx + vy*vy);
+	g.setStrokeStyle(weight).beginStroke(color);
+	g.moveTo(x, y).lineTo(x + vx, y + vy);
+	g.moveTo(x + vx + 1.42 * vx/v - 1.42 * vy/v, y + vy + 1.42 * vx/v + 1.42 * vy/v);
+	g.lineTo(x + vx - 14.2 * vx/v + 14.2 * vy/v, y + vy - 14.2 * vx/v - 14.2 * vy/v);
+	g.moveTo(x + vx, y + vy);
+	g.lineTo(x + vx - 14.2 * vx/v - 14.2 * vy/v, y + vy + 14.2 * vx/v - 14.2 * vy/v);
+	g.endStroke();
+}
+
+function my_init(){
+	ball1_m_text   = add_text("m1：2.0", "24px Meiryo", "#000", { x: 760, y: 4 })
+	ball1_m_slider = add_slider(1.0, 5.0, 240, 30, {x: 510, y: 4, value: 2.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			ball1_m_text.text = "m1：" + val;
+			ball1_m = evt.target.value;
+			ball1_r = Math.sqrt(ball1_m) * 16;
+		},
+		onDblClick: function(e){ this.value = 2.0; this.onChange(e)}
+	});
+	ball2_m_text   = add_text("m2：1.0", "24px Meiryo", "#000", { x: 760, y: 40 })
+	ball2_m_slider = add_slider(1.0, 5.0, 240, 30, {x: 510, y: 40, value: 1.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			ball2_m_text.text = "m2：" + val;
+			ball2_m = evt.target.value;
+			ball2_r = Math.sqrt(ball2_m) * 16;
+		},
+		onDblClick: function(e){ this.value = 1.0; this.onChange(e)}
+	});
+	speed_text   = add_text("▶×1.0", "24px Meiryo", "#000", { x: 760, y: 80 })
+	speed_slider = add_slider(0, 1.0, 240, 30, {x: 510, y: 80, value: 1.0,
+		onChange: function(evt){
+			val = "00" + parseInt(evt.target.value * 10).toString();
+			val = val.substr(-2, 1) + "." + val.substr(-1);
+			speed_text.text = "▶×" + val;
+			speed = evt.target.value;
+		},
+		onDblClick: function(e){ this.value = 1.0; this.onChange(e)}
+	});
+	
+	wall = add_shape({ x: 0, y: 0 });
+	wall.update = function(){
+		var g = this.graphics;
+		g.clear().beginFill("#7C6035").drawRect(0, 0, 16, 500).drawRect(0, 0, 500, 16).drawRect(484, 0, 16, 500).drawRect(0, 484, 500, 16).endFill();
+	}
+	
+	ball1 = add_shape({ x: ball1_x, y: ball1_y });
+	ball1.update = function(){
+		if (is_running){
+			ball1.x += ball1_vx * speed;
+			ball1.y += ball1_vy * speed;
+			if (ball1.x < 16 + ball1_r || ball1.x > 484 - ball1_r) ball1_vx = -ball1_vx;
+			if (ball1.y < 16 + ball1_r || ball1.y > 484 - ball1_r) ball1_vy = -ball1_vy;
+		}
+		var g = this.graphics;
+		g.clear();
+		g.beginFill("#990000").drawCircle(0, 0, ball1_r).endFill();
+	}
+	ball2 = add_shape({ x: ball2_x, y: ball2_y });
+	ball2.update = function(){
+		if (is_running){
+			ball2.x += ball2_vx * speed;
+			ball2.y += ball2_vy * speed;
+			if (ball2.x < 16 + ball2_r || ball2.x > 484 - ball2_r) ball2_vx = -ball2_vx;
+			if (ball2.y < 16 + ball2_r || ball2.y > 484 - ball2_r) ball2_vy = -ball2_vy;
+			var dx = ball1.x - ball2.x;
+			var dy = ball1.y - ball2.y;
+			var r2 = dx*dx+dy*dy;
+			if (r2 < (ball1_r + ball2_r)*(ball1_r + ball2_r)){
+				var t1 = 1.0 * (ball1_vx * dx + ball1_vy * dy) / r2;
+				var t2 = 1.0 * (ball2_vx * dx + ball2_vy * dy) / r2;
+				ball1_vx += (2 * ball2_m * t2 * dx - 2 * ball2_m * t1 * dx) / (ball1_m + ball2_m);
+				ball1_vy += (2 * ball2_m * t2 * dy - 2 * ball2_m * t1 * dy) / (ball1_m + ball2_m);
+				ball2_vx += (2 * ball1_m * t1 * dx - 2 * ball1_m * t2 * dx) / (ball1_m + ball2_m);
+				ball2_vy += (2 * ball1_m * t1 * dy - 2 * ball1_m * t2 * dy) / (ball1_m + ball2_m);
+			}
+		}
+		var g = this.graphics;
+		g.clear();
+		g.beginFill("#0000cc").drawCircle(0, 0, ball2_r).endFill();
+	}
+	momentum = add_shape({ x: 0, y: 0 });
+	momentum.update = function(){
+		var g = this.graphics;
+		g.clear();
+		if (ball1_vx * ball1_vx + ball1_vy * ball1_vy > 0){
+			drawArrow(g, ball1.x, ball1.y, ball1.x + ball1_vx * msize * ball1_m, ball1.y + ball1_vy * msize * ball1_m, "#f00", 5);
+			drawArrow(g, 700, 300, 700 + ball1_vx * msize * ball1_m, 300 + ball1_vy * msize * ball1_m, "#f00", 4);
+		}
+		if (ball2_vx * ball2_vx + ball2_vy * ball2_vy > 0){
+			drawArrow(g, ball2.x, ball2.y, ball2.x + ball2_vx * msize * ball2_m, ball2.y + ball2_vy * msize * ball2_m, "#00f", 5);
+			drawArrow(g, 700, 300, 700 + ball2_vx * msize * ball2_m, 300 + ball2_vy * msize * ball2_m, "#00f", 4);
+		}
+		g.setStrokeStyle(1).beginStroke("#ccc");
+		g.moveTo(700 + ball1_vx * msize * ball1_m, 300 + ball1_vy * msize * ball1_m);
+		g.lineTo(700 + ball1_vx * msize * ball1_m + ball2_vx * msize * ball2_m, 300 + ball1_vy * msize * ball1_m + ball2_vy * msize * ball2_m);
+		g.lineTo(700 + ball2_vx * msize * ball2_m, 300 + ball2_vy * msize * ball2_m);
+		drawArrow(g, 700, 300, 700 + ball1_vx * msize * ball1_m + ball2_vx * msize * ball2_m, 300 + ball1_vy * msize * ball1_m + ball2_vy * msize * ball2_m, "#f0f", 6);
+	}
+	
+	stop_button = add_image("startbutton.png", { regX: 0, regY: 0, x: 850 , y: 450,
+		images: [(new createjs.Bitmap( "stopbutton.png")).image,
+		         (new createjs.Bitmap("startbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	});
+	objects.push(ball1);
+	objects.push(ball2);
+	objects.push(wall);
+	objects.push(momentum);
+	
+	reset();
+	
+	
+	document.getElementById("stage").addEventListener("click", function(e){
+		var rect = e.target.getBoundingClientRect();
+		var x = e.clientX - rect.left;
+		var y = e.clientY - rect.top;
+		var dx = x - ball1.x;
+		var dy = y - ball1.y;
+		var d = Math.sqrt(dx*dx + dy*dy);
+		if (!is_running && (x < 850 && (x < 510 || y > 120))){
+			ball1_vx = 6.0 * dx / d;
+			ball1_vy = 6.0 * dy / d;
+			ball2_vx = 0;
+			ball2_vy = 0;
+			is_running = true;
+			stop_button.image = stop_button.images[0];
+		}
+	}, false);
+}
+
+function update(event){
+	if (is_running){
+	}
+	
+	for(var i=0; i<objects.length; i++){
+		objects[i].update();
+	}
+	stage.update();
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

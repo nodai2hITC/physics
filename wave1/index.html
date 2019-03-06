@@ -1,0 +1,276 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>波の合成</title>
+		<meta name="description" content="波の合成" />
+		<meta name="keywords" content="波の合成" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="960" height="600" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+
+	
+	<script type="text/javascript">
+
+var wave_minx = 4;
+var width = 800;
+var max_x = width / wave_minx;
+var regX = 50;
+var regY = 250;
+var T = 80;
+
+var manifest = [
+	{ id: "button1_0", src: "button1_0.png" },
+	{ id: "button1_1", src: "button1_1.png" },
+	{ id: "button1_2", src: "button1_2.png" },
+	{ id: "button2_0", src: "button2_0.png" },
+	{ id: "button2_1", src: "button2_1.png" },
+	{ id: "button2_2", src: "button2_2.png" },
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+	{ id: "source1",     src: "source1.png" },
+	{ id: "source2",     src: "source2.png" },
+	{ id: "mark1",       src: "mark1.png" }
+];
+
+var stage;
+
+var wave;
+var sources = [];
+var buttons = [];
+var marks   = [];
+
+var is_running = true;
+
+function my_init(){
+	wave = new createjs.Shape();
+	wave.x = regX;
+	wave.y = regY;
+	stage.addChild(wave);
+	wave.waves = [];
+	wave.waves.push({ colour: "#f00", y: [], t: 0, mode: "stop", update: function(){
+		var y = 0;
+		switch(this.mode){
+		case "once":
+		case "loop":
+			this.t++;
+			y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+			if (this.mode=="once" && this.t >= T){
+				this.mode = "stop";
+				this.t = 0;
+			}
+		}
+		this.y.pop();
+		this.y.unshift(y);
+		sources[0].y = y + regY;
+	} });
+	wave.waves.push({ colour: "#00f", y: [], t: 0, mode: "stop", update: function(){
+		var y = 0;
+		switch(this.mode){
+		case "once":
+		case "loop":
+			this.t++;
+			y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+			if (this.mode=="once" && this.t >= T){
+				this.mode = "stop";
+				this.t = 0;
+			}
+		}
+		this.y.shift();
+		this.y.push(y);
+		sources[1].y = y + regY;
+	} });
+	wave.waves[0].once = wave.waves[1].once = function(){
+		if (this.mode == "stop"){
+			this.mode = "once";
+			this.t = 0;
+		}
+	};
+	wave.waves[0].toggle = wave.waves[1].toggle = function(){
+		if (this.mode == "loop"){
+			this.mode = "once";
+			this.t = this.t % T;
+		} else {
+			this.mode = "loop";
+		}
+	};
+	
+	sources.push(add_image("source1.png", { regX: 12, regY: 12, x: regX        , y: regY }));
+	sources.push(add_image("source2.png", { regX: 12, regY: 12, x: regX + width, y: regY }));
+	
+	buttons.push(add_image("button1_0.png", { regX: 24, regY: 24, x: 50 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[0].once();
+			wave.waves[1].once();
+		}
+	}));
+	buttons.push(add_image("button1_1.png", { regX: 16, regY: 16, x: 100 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[0].once();
+		}
+	}));
+	buttons.push(add_image("button1_2.png", { regX: 16, regY: 16, x: 140 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[1].once();
+		}
+	}));
+	buttons.push(add_image("button2_0.png", { regX: 24, regY: 24, x: 200 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[0].toggle();
+			wave.waves[1].toggle();
+		}
+	}));
+	buttons.push(add_image("button2_1.png", { regX: 16, regY: 16, x: 250 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[0].toggle();
+		}
+	}));
+	buttons.push(add_image("button2_2.png", { regX: 16, regY: 16, x: 290 , y: 550,
+		onMouseDown: function(evt){
+			wave.waves[1].toggle();
+		}
+	}));
+	
+	buttons.push(add_image("stopbutton.png", { regX: 24, regY: 24, x: 400 , y: 550,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+	
+	marks.push(add_image("mark1.png", { regX: 12, regY: 12, x: 550 , y: 550,
+		onwave: false, wave_x: 100,
+		onMouseDown: function(evt){
+			this.offset = {x:this.x-evt.stageX, y:this.y-evt.stageY};
+			this.onwave = false;
+		},
+		onPressMove: function(evt){
+			this.x = evt.stageX+ this.offset.x;
+			this.y = evt.stageY+ this.offset.y;
+		},
+		onPressUp: function(evt){
+			if (this.y < regY - 200 || this.y > regY + 200 ||
+			    this.wave_x < 0 || this.wave_x > max_x){
+				this.onwave = false;
+				this.x = 550;
+				this.y = 550;
+			} else {
+				this.onwave = true;
+				this.wave_x = parseInt((this.x - regX) / wave_minx);
+				this.x = this.wave_x * wave_minx + regX;
+			}
+		}
+	}));
+	
+	for(var i=0; i<wave.waves.length; i++){
+		for(var j=0; j<=max_x; j++){
+			wave.waves[i].y[j] = 0;
+		}
+	}
+}
+
+function update(event){
+	if (is_running) update_waves(wave);
+	draw_waves(wave);
+}
+
+function update_waves(wave){
+	for(var i=0; i<wave.waves.length; i++){
+		wave.waves[i].update();
+	}
+}
+
+function add_image(filename, hash){
+	var image = new createjs.Bitmap(filename);
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			image.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else {
+			image[i] = hash[i];
+		}
+	}
+	stage.addChild(image);
+	return image;
+}
+
+function sumy(wave, j){
+	y = 0;
+	for(var i=0; i<wave.waves.length; i++) y+= wave.waves[i].y[j];
+	return y;
+}
+function draw_waves(wave){
+	var g = wave.graphics;
+	g.clear();
+	
+	// 合成波を描画
+	g.setStrokeStyle(4);
+	g.beginStroke("#000");
+	g.moveTo(0, sumy(wave, 0));
+	for(var j=1; j<wave.waves[0].y.length; j++){
+		g.lineTo(j * wave_minx, sumy(wave, j));
+	}
+	g.endStroke();
+	if (marks[0].onwave){
+		marks[0].y = sumy(wave, marks[0].wave_x) + regY;
+	}
+	
+	// それぞれの波を描画
+	g.setStrokeStyle(2);
+	for(var i=0; i<wave.waves.length; i++){
+		g.beginStroke(wave.waves[i].colour);
+		g.moveTo(0, wave.waves[i].y[0]);
+		var y = wave.waves[i].y;
+		for(var j=1; j<y.length; j++){
+			g.lineTo(j * wave_minx, y[j]);
+		}
+		g.endStroke();
+	}
+	
+	// 基準線を引く
+	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+	
+	// 更新
+	stage.update();
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

@@ -1,0 +1,260 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>弦の固有振動</title>
+		<meta name="description" content="弦の固有振動" />
+		<meta name="keywords" content="弦の固有振動" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="960" height="400" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+	<form>
+		<p>　　
+			<input type="checkbox" checked="checked" id="wave" name="wave" /><label for="wave">実際の振動</label>　
+			<input type="checkbox" id="wave1" name="wave1" /><label for="wave1">左→右の波</label>　
+			<input type="checkbox" id="wave2" name="wave2" /><label for="wave2">左←右の波</label>
+		</p>
+		<p>　　
+			<input type="checkbox" checked="checked" id="vibration1" name="vibration1" /><label for="vibration1">基本振動</label>　
+			<input type="checkbox" id="vibration2" name="vibration2" /><label for="vibration2">２倍振動</label>　
+			<input type="checkbox" id="vibration3" name="vibration3" /><label for="vibration3">３倍振動</label>
+		</p>
+	</form>
+	<script type="text/javascript">
+
+var wave_minx = 4;
+var regX = 80, regY = 160;
+
+var manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+];
+
+var stage;
+
+var string_wave = [], string_wave1 = [], string_wave2 = []
+var string_shape;
+var triangle1_shape, triangle2_shape;
+var buttons = [];
+var text_v, slider_v;
+var time = 0;
+
+var is_running = true;
+var is_editing = false;
+
+function my_init(){
+	string_shape = add_shape({ x: regX, y: regY })
+	
+	triangle1_shape = add_shape({ x: regX, y: regY });
+	triangle1_shape.graphics.beginFill("#090").moveTo(0, 0).lineTo(-30, 160).lineTo(30, 160).lineTo(0, 0).endFill();
+	
+	triangle2_shape = add_shape({ x: 700, y: regY, 
+		onMouseDown: function(evt){
+			this.offset = this.x - evt.stageX;
+			is_editing = true;
+		},
+		onPressMove: function(evt){
+			var x = evt.stageX + this.offset
+			this.x = (x < 320 ? 320 : (x > 880 ? 880 : x));
+		},
+		onPressUp: function(evt){
+			var x = evt.stageX + this.offset
+			this.x = (x < 320 ? 320 : (x > 880 ? 880 : x));
+			is_editing = false;
+			reset();
+		}
+	});
+	triangle2_shape.graphics.beginFill("#0C0").moveTo(0, 0).lineTo(-30, 160).lineTo(30, 160).lineTo(0, 0).endFill();
+	
+	text_v   = add_text("波の速さ：", "36px Meiryo", "#000", { x: 200, y: 335 })
+	slider_v = add_slider(100, 1000, 500, 48, {x: 380, y: 335, value: 310,
+		onChange:   function(evt){ reset(); },
+		onDblClick: function(evt){ this.value = 310; this.onChange(evt)}
+	});
+	
+	buttons.push(add_image("stopbutton.png", { regX: 24, regY: 24, x: 50 , y: 350,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	}));
+	
+	reset();
+}
+
+function reset(){
+	for(var i=0; i<800; i++){
+		string_wave[i] = string_wave1[i] = string_wave2[i] = 0;
+	}
+	time = (triangle2_shape.x - regX) / slider_v.value * 30;
+}
+
+function update(event){
+	var width = triangle2_shape.x - regX;
+	var graphics = string_shape.graphics;
+	if (is_editing){
+		graphics.clear();
+		graphics.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+		if (document.getElementById("wave").checked){
+			graphics.setStrokeStyle(4).beginStroke("#000").moveTo(0, 0).lineTo(width, 0).endStroke();
+		}
+		if (document.getElementById("wave1").checked){
+			graphics.setStrokeStyle(2).beginStroke("#00F").moveTo(0, 0).lineTo(width, 0).endStroke();
+		}
+		if (document.getElementById("wave2").checked){
+			graphics.setStrokeStyle(2).beginStroke("#F00").moveTo(0, 0).lineTo(width, 0).endStroke();
+		}
+	} else if (is_running){
+		var vib1 = document.getElementById("vibration1").checked;
+		var vib2 = document.getElementById("vibration2").checked;
+		var vib3 = document.getElementById("vibration3").checked;
+		
+		var v = slider_v.value;
+		var T = width * 2 / slider_v.value * 60;
+		var max_x = width / wave_minx;
+		var A = (vib1 || vib2 || vib3) ? (60 / (vib1 + vib2 + vib3)) : 60;
+		
+		for(var i=0; i<=width; i++){
+			string_wave1[i] = (
+				(vib1 && Math.sin(6.283185307179586 * (time - i * 60 / v) / T * 1)) +
+				(vib2 && Math.sin(6.283185307179586 * (time - i * 60 / v) / T * 2)) +
+				(vib3 && Math.sin(6.283185307179586 * (time - i * 60 / v) / T * 3))
+				) * A;
+			string_wave2[i] = (
+				(vib1 &&  Math.sin(6.283185307179586 * (time - (width - i) * 60 / v) / T * 1)) +
+				(vib2 && -Math.sin(6.283185307179586 * (time - (width - i) * 60 / v) / T * 2)) +
+				(vib3 &&  Math.sin(6.283185307179586 * (time - (width - i) * 60 / v) / T * 3))
+				) * A;
+			string_wave[i] = string_wave1[i] + string_wave2[i];
+		}
+		
+		graphics.clear();
+		graphics.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+		if (document.getElementById("wave").checked){
+			graphics.setStrokeStyle(4).beginStroke("#000").moveTo(0, 0);
+			for(var j=1; j<width; j+= wave_minx){
+				graphics.lineTo(j, string_wave[j]);
+			}
+			graphics.lineTo(width, string_wave[width]).endStroke();
+		}
+		if (document.getElementById("wave1").checked){
+			graphics.setStrokeStyle(2).beginStroke("#00F").moveTo(0, string_wave1[0]);
+			for(var j=1; j<width; j+= wave_minx){
+				graphics.lineTo(j, string_wave1[j]);
+			}
+			graphics.lineTo(width, string_wave1[width]).endStroke();
+		}
+		if (document.getElementById("wave2").checked){
+			graphics.setStrokeStyle(2).beginStroke("#F00").moveTo(0, string_wave2[0]);
+			for(var j=1; j<width; j+= wave_minx){
+				graphics.lineTo(j, string_wave2[j]);
+			}
+			graphics.lineTo(width, string_wave2[width]).endStroke();
+		}
+		time += 1;
+	}
+	stage.update();
+}
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+function draw_waves(wave){
+	var g = wave.graphics;
+	g.clear();
+	
+	// 合成波を描画
+	g.setStrokeStyle(4);
+	g.beginStroke("#000");
+	g.moveTo(0, sumy(wave, 0));
+	for(var j=1; j<wave.waves[0].y.length; j++){
+		g.lineTo(j * wave_minx, sumy(wave, j));
+	}
+	g.endStroke();
+	if (marks[0].onwave){
+		marks[0].y = sumy(wave, marks[0].wave_x) + regY;
+	}
+	
+	// それぞれの波を描画
+	g.setStrokeStyle(2);
+	for(var i=0; i<wave.waves.length; i++){
+		g.beginStroke(wave.waves[i].colour);
+		g.moveTo(0, wave.waves[i].y[0]);
+		var y = wave.waves[i].y;
+		for(var j=1; j<y.length; j++){
+			g.lineTo(j * wave_minx, y[j]);
+		}
+		g.endStroke();
+	}
+	
+	// 基準線を引く
+	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+	
+	// 更新
+	stage.update();
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+		
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

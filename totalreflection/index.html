@@ -1,0 +1,214 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>光の屈折・全反射</title>
+		<meta name="description" content="光の屈折・全反射" />
+		<meta name="keywords" content="光の屈折・全反射" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="600" height="600" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form>
+			<p>
+				<input type="checkbox" id="kakudo" name="kaudo" checked="checked" />
+				<label for="kakudo">角度を表示</label>
+			</p>
+			<p>
+				<input type="checkbox" id="support_line" name="support_line" />
+				<label for="support_line">補助線を表示</label>
+			</p>
+			<p>
+				屈折率：<input type="text" list="rate_list" id="rate" value="1.33" />
+				<datalist id="rate_list">
+					<option value="1.33">1.33 （水）</option>
+					<option value="1.70">1.70 （ガラス）</option>
+					<option value="2.42">2.42 （ダイヤモンド）</option>
+				</datalist>
+			</p>
+		</form>
+	<script type="text/javascript">
+
+var manifest = [
+];
+
+var stage;
+
+var shape;
+var theta = Math.PI * 0.75;
+var bending_rate = 1.33;
+var support_line = false;
+var kakudo = true;
+var theta_text, bending_text;
+
+function my_init(){
+	shape = new createjs.Shape()
+	stage.addChild(shape);
+	
+	shape.on("mousedown", function(evt){
+		var x = evt.stageX - 300;
+		var y = 300 - evt.stageY;
+		
+		if (x==0){
+			theta = y > 0 ? (Math.PI / 2) : (Math.PI * 3 / 2);
+		} else {
+			theta = Math.atan(y / x);
+			if (x < 0)     theta += Math.PI;
+			if (theta < 0) theta += Math.PI * 2;
+		}
+	});
+	shape.on("pressmove", function(evt){
+		var x = evt.stageX - 300;
+		var y = 300 - evt.stageY;
+		
+		if (x==0){
+			theta = y > 0 ? (Math.PI / 2) : (Math.PI * 3 / 2);
+		} else {
+			theta = Math.atan(y / x);
+			if (x < 0)     theta += Math.PI;
+			if (theta < 0) theta += Math.PI * 2;
+		}
+	});
+	
+	theta_text = new createjs.Text("" ,"36px Century", "#F00");
+	stage.addChild(theta_text);
+	bending_text = new createjs.Text("" ,"36px Century", "#F00");
+	stage.addChild(bending_text);
+	bending_text.x = 100;
+	
+	update(null);
+}
+
+function draw(){
+	kakudo = document.getElementById("kakudo").checked;
+	support_line = document.getElementById("support_line").checked;
+	bending_rate = parseFloat(document.getElementById("rate").value);
+	if (bending_rate == 0) bending_rate = 1.33;
+	
+	var g = shape.graphics;
+	g.clear();
+	
+	g.beginFill("#000").drawRect(0, 0, 600, 600).endFill();
+	g.beginFill("#9cc").drawRect(0, 300, 600, 600).endFill();
+	var refl = 0.5;
+	var bend = 0.5;
+	var sin = Math.sin(theta - Math.PI/2);
+	var pm = theta <= Math.PI ? 1 : -1;
+	var bend_sin = theta <= Math.PI ? sin / bending_rate : sin * bending_rate;
+	if (bend_sin > 1 || bend_sin < -1){
+		bend = 0;
+		refl = 1;
+	} else {
+		refl = (Math.abs(bend_sin) + Math.abs(sin)) * 0.25;
+		bend = 1 - refl;
+	}
+	
+	g.setStrokeStyle(1).beginStroke(createjs.Graphics.getRGB(255, 255, 255, 0.5)).
+	  moveTo(300, 0).lineTo(300,600);
+	if (support_line){
+		g.setStrokeStyle(1).beginStroke(createjs.Graphics.getRGB(255, 255, 255, 0.5)).
+		  drawCircle(300, 300, 280);
+		for(var i=-9; i<10; i++){
+			g.moveTo(300 + i*280*0.1, 300 - Math.sqrt(1 - i*i*0.01) * 280).
+			  lineTo(300 + i*280*0.1, 300 + Math.sqrt(1 - i*i*0.01) * 280);
+		}
+		g.endStroke();
+	}
+	// 屈折
+	if (bend > 0){
+		g.setStrokeStyle(20, "round").beginStroke(createjs.Graphics.getRGB(255, 255, 0, bend)).
+		  moveTo(300, 300).lineTo(300 + bend_sin*500,
+		                          300 + Math.sqrt(1 - bend_sin*bend_sin)*500 * pm);
+	}
+	// 反射
+	g.setStrokeStyle(20, "round").beginStroke(createjs.Graphics.getRGB(255, 255, 0, refl)).
+	  moveTo(300, 300).lineTo(300 + sin*500, 300 - Math.sqrt(1 - sin*sin)*500 * pm);
+	// 入射光
+	g.setStrokeStyle(20, "round").beginStroke(createjs.Graphics.getRGB(255, 255, 0, 1.0)).
+	  moveTo(300, 300).lineTo(300 - sin*500, 300 - Math.sqrt(1 - sin*sin)*500 * pm);
+	
+	g.endStroke();
+	
+	if (kakudo){
+		theta_text.text = (Math.abs(parseInt(theta * 180 / Math.PI) % 180 - 90)).toString();
+		if (theta > Math.PI){
+			theta_text.x = 280 + Math.cos(Math.PI * 3 / 2 - (Math.PI * 3 / 2 - theta) / 2) * 40;
+			theta_text.y = 280 - Math.sin(Math.PI * 3 / 2 - (Math.PI * 3 / 2 - theta) / 2) * 40;
+		} else {
+			theta_text.x = 280 + Math.cos(Math.PI / 2 - (Math.PI / 2 - theta) / 2) * 40;
+			theta_text.y = 280 - Math.sin(Math.PI / 2 - (Math.PI / 2 - theta) / 2) * 40;
+		}
+		if (bend > 0){
+			var bend_theta = Math.asin(bend_sin);
+			bending_text.text = parseInt(Math.abs(bend_theta) * 180 / Math.PI).toString();
+			if (theta > Math.PI){
+				bending_text.x = 280 + Math.sin(bend_theta / 2) * 80;
+				bending_text.y = 280 - Math.cos(bend_theta / 2) * 80;
+			} else {
+				bending_text.x = 280 + Math.sin(bend_theta / 2) * 80;
+				bending_text.y = 280 + Math.cos(bend_theta / 2) * 80;
+			}
+		} else {
+			bending_text.text = "";
+		}
+	} else {
+		theta_text.text   = "";
+		bending_text.text = "";
+	}
+}
+
+function update(event){
+	draw();
+	stage.update();
+}
+
+
+function add_image(filename, hash){
+	var image = new createjs.Bitmap(filename);
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			image.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else {
+			image[i] = hash[i];
+		}
+	}
+	stage.addChild(image);
+	return image;
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+

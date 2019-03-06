@@ -1,0 +1,172 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>波の速さ・周期・振動数・波長の関係</title>
+		<meta name="description" content="波の速さ・周期・振動数・波長の関係" />
+		<meta name="keywords" content="波の速さ・周期・振動数・波長の関係" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="600">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	<script type="text/javascript">
+
+const manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton" , src: "stopbutton.png" },
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+let stage;
+
+let wave, source1, text1, text2, v_text, t_text, startbutton;
+let time = 0;
+let is_running = false;
+const T = 300 / 2;
+
+function my_init(){
+	wave = add_shape({ x: 40, y: 200 });
+	text1 = add_text("", "32px Meiryo", "#000", { x: 40, y: 400 });
+	text2 = add_text("", "32px Meiryo", "#000", { x: 40, y: 440 });
+	text1_2 = add_text("", "32px Meiryo", "#000", { x: 40, y: 400, alpha: 0 });
+	text2_2 = add_text("", "32px Meiryo", "#000", { x: 40, y: 440, alpha: 0 });
+	text3 = add_text("", "32px Meiryo", "#000", { x: 160, y: 500 });
+	v_text = add_text("3.0 m", "32px Meiryo", "#000", { x: -999, y: -2 });
+	v_text_2 = add_text("  v  ", "32px Meiryo", "#000", { x: -999, y: -8, alpha: 0 });
+	t_text = add_text("t = ", "32px Meiryo", "#000", { x: 700, y: 300 });
+	t_text_2 = add_text("t = T〔s〕", "32px Meiryo", "#000", { x: 700, y: 300, alpha: 0 });
+	source1 = add_image("source1.png", { regX: 12, regY: 12, x: 40 , y: 200 });
+	startbutton = add_image("startbutton.png", { x: 40 , y: 500,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	});
+	resetbutton = add_image("resetbutton.png", { x: 840 , y: 500,
+		onMouseDown: function(evt){
+			is_running = false;
+			time = 0;
+			v_text.x = v_text_2.x = -999;
+			text1.alpha = text2.alpha = v_text.alpha = t_text.alpha = 1;
+			text1_2.alpha = text2_2.alpha = v_text_2.alpha = t_text_2.alpha = 0;
+			text3.text = text1.text = text1_2.text = text2.text = text2_2.text = t_text.text = "";
+			startbutton.image = startbutton.images[0];
+		}
+	});
+}
+
+function reset_stage(){
+}
+
+function update(event){
+	if (is_running && time < T * 2 + 60) time++;
+	if (time == 60){
+		is_running = false;
+		startbutton.image = startbutton.images[0];
+		text1.text = "1 s あたり、波の先端は 3.0 m 進む。";
+		text1_2.text = "1 s あたり、波の先端は v 進む。";
+	}
+	if (time == T * 2){
+		is_running = false;
+		startbutton.image = startbutton.images[0];
+		text2.text = "１つの波が完成するのに、周期 5.0 s かかる。";
+		text2_2.text = "１つの波が完成するのに、周期 T かかる。";
+		text3.text = "⇒ 波長 λ は？"
+	}
+	let g = wave.graphics;
+	g.clear();
+	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(1000, 0).endStroke();
+	t = time;
+	if (t > T * 2) t = T * 2;
+	t_text.text = "t = " + parseInt(t / 60).toString() + "." + (parseInt(t / 6) % 10).toString() + " s";
+	g.setStrokeStyle(4).beginStroke("#f00").moveTo(t * 2.5, 0);
+	for(let i=t; i>=0; i--){
+		g.lineTo(i*2.5, -Math.sin(Math.PI * (t - i) / T) * 160);
+	}
+	source1.y = 200 - Math.sin(Math.PI * t / T) * 160;
+	if (time >= 60){
+		g.setStrokeStyle(4).beginStroke("#000").moveTo((t-60) * 2.5, -170);
+		g.lineTo(t * 2.5, -170).lineTo(t * 2.5 - 10, -160);
+		g.moveTo(t * 2.5, -170).lineTo(t * 2.5 - 10, -180);
+		v_text.x = v_text_2.x = t * 2.5 - 80;
+	}
+	if (time >= T * 2){
+		t = time - T * 2;
+		text1.alpha = 1.0 * (60 - t) / 60;
+		text2.alpha = 1.0 * (60 - t) / 60;
+		v_text.alpha = 1.0 * (60 - t) / 60;
+		t_text.alpha = 1.0 * (60 - t) / 60;
+		text1_2.alpha = 1.0 * t / 60;
+		text2_2.alpha = 1.0 * t / 60;
+		v_text_2.alpha = 1.0 * t / 60;
+		t_text_2.alpha = 1.0 * t / 60;
+	}
+	stage.update();
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.setFPS(60);
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+		
+//		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
