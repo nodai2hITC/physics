@@ -149,9 +149,12 @@ function update(event){
 
 	let gg = ghost.graphics;
 	gg.clear().setStrokeStyle(1);
-	for(var i=0; i<ghosts.length; i++){
-		gh = ghosts[i];
-		gg.beginStroke("#0008").beginFill("#0F04").drawCircle(gh.x, gh.y, 16).endStroke().endFill();
+
+	if (document.getElementById("trace").checked){
+		for(var i=0; i<ghosts.length; i++){
+			gh = ghosts[i];
+			gg.beginStroke("#0008").beginFill("#0F04").drawCircle(gh.x, gh.y, 16).endStroke().endFill();
+		}
 	}
 
 	if (document.getElementById("projection_trace").checked){
