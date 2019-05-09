@@ -1,0 +1,225 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>落下運動</title>
+		<meta name="description" content="落下運動" />
+		<meta name="keywords" content="落下運動" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+		<script src="../scripts/Slider.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="800" height="550">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<p>　
+			<input type="button" id="throw" name="throw" value="投射！" />　
+			角度：<input type="range" id="degree" min="0" max="90" value="30" style="width: 500px;" /><span id="degree_value">30</span>
+		</p>
+		<p>　
+			<input type="checkbox" id="velocity" name="velocity" />
+			<label for="velocity">速度を表示</label>　
+			<input type="checkbox" id="projection" name="projection" />
+			<label for="projection">xy軸射影を表示</label>　
+			<input type="checkbox" id="projection_velocity" name="projection_velocity" />
+			<label for="projection_velocity">xy軸射影に速度成分を表示</label>　
+		</p>
+
+	<script type="text/javascript">
+
+var manifest = [
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+var stage;
+var time = 0;
+var degree = 30;
+
+var axis;
+var ghost;
+var ball;
+
+var ghosts = [];
+var balls = [];
+const v = 210;
+const g = 60;
+
+var is_running = true;
+
+function reset(){
+	time = 0;
+	ghosts = [];
+	for(var i=0; i<balls.length; i++){
+		stage.removeChild(balls[i]);
+	}
+	balls = [];
+}
+
+function my_init(){
+	axis = add_shape({ x: 0, y: 0 });
+	axis.graphics.setStrokeStyle(2).beginStroke("#000").moveTo(50, 500).lineTo(50, 10).lineTo(40, 20).moveTo(50, 10).lineTo(60, 20).
+	                                                    moveTo(50, 500).lineTo(790, 500).lineTo(780, 490).moveTo(790, 500).lineTo(780, 510).endStroke();
+	
+	ghost = add_shape({ x: 0, y: 0 });
+
+	ball = add_shape({ x: 50, y: 500 });
+
+	document.getElementById("throw").addEventListener("click", function(){
+		new_ball = add_shape({ x: ball.x, y: ball.y });
+		new_ball.graphics.setStrokeStyle(1).beginStroke("#000").beginFill("#0F0").drawCircle(0, 0, 16).endFill().endStroke();
+		new_ball.t0 = time;
+		new_ball.x0 = ball.x;
+		new_ball.y0 = ball.y;
+		new_ball.last_t = 0;
+		new_ball.vx0 =  Math.cos(Math.PI * 2 * degree / 360) * v;
+		new_ball.vy0 = -Math.sin(Math.PI * 2 * degree / 360) * v;
+		
+		new_ball.update = function(){
+			let t = 2.0 * (time - this.t0) / 60;
+			if (t >= this.last_t) {
+				ghosts.push({x: this.x, y: this.y, vx: this.vx0, vy: this.vy0 + g * t});
+				this.last_t = t + 0.5;
+			}
+			this.x = this.x0 + this.vx0 * t;
+			this.y = this.y0 + this.vy0 * t + g * t * t / 2;
+			if (document.getElementById("velocity").checked){
+				this.graphics.clear().setStrokeStyle(1).beginStroke("#000").beginFill("#0F0").drawCircle(0, 0, 16).endFill().endStroke();
+				arrow(this.graphics, 0, 0, this.vx0 * 0.3, (this.vy0 + g * t) * 0.3, 2, "#F00");
+			}
+			if (this.y > 600){
+				stage.removeChild(this);
+				this.update = function(){};
+			}
+		};
+		balls.push(new_ball);
+	})
+
+	add_image("resetbutton.png", { regX: 24, regY: 24, x: 700 , y: 40,
+		onMouseDown: function(evt){
+			reset();
+		}
+	})
+	reset();
+}
+
+function arrow(graphic, x, y, dx, dy, stroke, color){
+	var v = Math.sqrt(dx*dx + dy*dy);
+	if (v == 0) return;
+	graphic.setStrokeStyle(stroke).beginStroke(color);
+	graphic.moveTo(x, y).lineTo(x + dx, y + dy);
+	graphic.moveTo(x + dx + 1.42 * dx/v - 1.42 * dy/v, y + dy + 1.42 * dx/v + 1.42 * dy/v);
+	graphic.lineTo(x + dx - 14.2 * dx/v + 14.2 * dy/v, y + dy - 14.2 * dx/v - 14.2 * dy/v);
+	graphic.moveTo(x + dx, y + dy);
+	graphic.lineTo(x + dx - 14.2 * dx/v - 14.2 * dy/v, y + dy + 14.2 * dx/v - 14.2 * dy/v);
+	graphic.endStroke();
+	return;
+}
+
+function update(event){
+	degree = parseInt(document.getElementById("degree").value);
+	document.getElementById("degree_value").innerText = degree;
+	if (is_running){
+		time++;
+	}
+	for(var i=0; i<balls.length; i++){
+		balls[i].update();
+	}
+
+	ball.graphics.clear().setStrokeStyle(1).beginStroke("#000").beginFill("#0F0").drawCircle(0, 0, 16).endFill().endStroke();
+	arrow(ball.graphics, 0, 0, Math.cos(Math.PI * degree / 180) * 60, -Math.sin(Math.PI * degree / 180) * 60, 3, "#F00");
+
+	let gg = ghost.graphics;
+	gg.clear().setStrokeStyle(1);
+	for(var i=0; i<ghosts.length; i++){
+		gh = ghosts[i];
+		gg.beginStroke("#0008").beginFill("#0F04").drawCircle(gh.x, gh.y, 16).endStroke().endFill();
+	}
+
+	if (document.getElementById("projection").checked){
+		for(var i=0; i<ghosts.length; i++){
+			gh = ghosts[i];
+			gg.beginStroke("#0008").beginFill("#00F4").drawCircle(20, gh.y, 16).endStroke().endFill();
+			gg.beginStroke("#0008").beginFill("#00F4").drawCircle(gh.x, 530, 16).endStroke().endFill();
+		}
+		if (document.getElementById("projection_velocity").checked){
+			gg.setStrokeStyle(2).beginStroke("#F008");
+			for(var i=0; i<ghosts.length; i++){
+				gh = ghosts[i];
+				arrow(gg, gh.x, 530, gh.vx * 0.3, 0, 2, "#F008");
+				arrow(gg, 20, gh.y, 0, gh.vy * 0.3, 2, "#F008");
+			}
+			gg.endStroke();
+		}
+	}
+
+	if (document.getElementById("velocity").checked){
+		gg.setStrokeStyle(2).beginStroke("#F008");
+		for(var i=0; i<ghosts.length; i++){
+			gh = ghosts[i];
+			arrow(gg, gh.x, gh.y, gh.vx * 0.3, gh.vy * 0.3, 2, "#F008");
+		}
+		gg.endStroke();
+	}
+
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.timingMode = createjs.Ticker.RAF;
+		createjs.Ticker.addEventListener("tick", update);
+		createjs.Ticker.addEventListener("tick", stage);
+		createjs.Touch.enable(stage);
+		
+		my_init();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
