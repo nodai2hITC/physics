@@ -23,12 +23,16 @@
 			角度：<input type="range" id="degree" min="0" max="90" value="30" style="width: 500px;" /><span id="degree_value">30</span>
 		</p>
 		<p>　
-			<input type="checkbox" id="velocity" name="velocity" />
+			<input type="checkbox" id="velocity" name="velocity" checked="checked" />
 			<label for="velocity">速度を表示</label>　
-			<input type="checkbox" id="projection" name="projection" />
+			<input type="checkbox" id="trace" name="trace" checked="checked" />
+			<label for="trace">跡を表示</label>　
+			<input type="checkbox" id="projection" name="projection" checked="checked" />
 			<label for="projection">xy軸射影を表示</label>　
+			<input type="checkbox" id="projection_trace" name="projection_trace" />
+			<label for="projection_trace">xy軸射影に跡を表示</label>　
 			<input type="checkbox" id="projection_velocity" name="projection_velocity" />
-			<label for="projection_velocity">xy軸射影に速度成分を表示</label>　
+			<label for="projection_velocity">xy軸射影跡に速度成分を表示</label>　
 		</p>
 
 	<script type="text/javascript">
@@ -88,10 +92,19 @@ function my_init(){
 			}
 			this.x = this.x0 + this.vx0 * t;
 			this.y = this.y0 + this.vy0 * t + g * t * t / 2;
+			this.graphics.clear().setStrokeStyle(1).beginStroke("#000").beginFill("#0F0").drawCircle(0, 0, 16).endFill().endStroke();
 			if (document.getElementById("velocity").checked){
-				this.graphics.clear().setStrokeStyle(1).beginStroke("#000").beginFill("#0F0").drawCircle(0, 0, 16).endFill().endStroke();
 				arrow(this.graphics, 0, 0, this.vx0 * 0.3, (this.vy0 + g * t) * 0.3, 2, "#F00");
 			}
+			if (document.getElementById("projection").checked){
+				this.graphics.setStrokeStyle(1).beginStroke("#0008").beginFill("#00F4").drawCircle(20 - this.x, 0, 16).endFill().endStroke();
+				this.graphics.setStrokeStyle(1).beginStroke("#0008").beginFill("#00F4").drawCircle(0, 530 - this.y, 16).endFill().endStroke();
+				if (document.getElementById("velocity").checked){
+					arrow(this.graphics, 0, 530 - this.y, this.vx0 * 0.3, 0, 2, "#F008");
+					arrow(this.graphics, 20 - this.x, 0, 0, (this.vy0 + g * t) * 0.3, 2, "#F008");
+				}
+			}
+
 			if (this.y > 600){
 				stage.removeChild(this);
 				this.update = function(){};
@@ -141,7 +154,7 @@ function update(event){
 		gg.beginStroke("#0008").beginFill("#0F04").drawCircle(gh.x, gh.y, 16).endStroke().endFill();
 	}
 
-	if (document.getElementById("projection").checked){
+	if (document.getElementById("projection_trace").checked){
 		for(var i=0; i<ghosts.length; i++){
 			gh = ghosts[i];
 			gg.beginStroke("#0008").beginFill("#00F4").drawCircle(20, gh.y, 16).endStroke().endFill();
