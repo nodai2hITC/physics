@@ -1,0 +1,268 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>熱機関</title>
+		<meta name="description" content="熱機関" />
+		<meta name="keywords" content="熱機関" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="700">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	<script type="text/javascript">
+
+const manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton" , src: "stopbutton.png" },
+	{ id: "resetbutton", src: "resetbutton.png" }
+];
+
+let stage;
+
+let heat_engine, arrow, weight, heat, pv, startbutton, resetbutton;
+let text_p, text_v, text_w;
+let mode = 1;
+let time = 0;
+let is_running = false;
+
+function my_init(){
+	heat_engine = add_shape({ x: 0, y: 0 });
+	heat = add_shape({ x: 200, y: 600 });
+	arrow = add_shape({ x: 350, y: -999 });
+	weight = add_shape({ x: 200, y: 200 });
+	pv = add_shape({ x: 550, y: 600 });
+	text_p = add_text("p", "32px Meiryo", "#000", { x: 540, y: 250 })
+	text_v = add_text("V", "32px Meiryo", "#000", { x: 860, y: 580 })
+	text_w = add_text("", "24px Meiryo", "#000", { x: 660, y: 550 })
+	startbutton = add_image("startbutton.png", { regX: 0, regY: 0, x: 10 , y: 10,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+			if (time >= 120 && is_running) {
+				time = 0;
+				mode += 1;
+				if (mode == 5) mode = 1;
+			}
+		}
+	});
+	resetbutton = add_image("resetbutton.png", { regX: 0, regY: 0, x: 10 , y: 70,
+		onMouseDown: function(evt){
+			reset_stage();
+		}
+	});
+}
+
+function reset_stage(){
+	time = 0;
+	mode = 1;
+	is_running = false;
+	startbutton.image = startbutton.images[0];
+}
+
+function update_arrow(){
+	let g = arrow.graphics;
+	arr = [0];
+	for(let i=0; i<8; i++){
+		arr.push(((i*0.125 - (time % 30) / 120.0) + 0.25) % 1);
+	}
+	arr.push(1.0);
+	g.clear().setStrokeStyle(2).beginStroke("#f00").beginLinearGradientFill(["#f90","#f90","#f00","#f90","#f00","#f90","#f00","#f90","#f00","#f00"], arr, 100, -100, -100, 100);
+	g.moveTo(0, -100).lineTo(-100, 0).lineTo(-50, 0).lineTo(-50, 100).lineTo(50, 100).lineTo(50, 0).lineTo(100, 0).lineTo(0, -100);
+	g.endFill();
+	if (mode == 1) {
+		arrow.alpha = time / 15.0;
+		arrow.y = 550;
+		arrow.rotation = 0;
+	} else if (mode == 2){
+		arrow.alpha = 7.0 - time / 15.0;
+		arrow.y = 550 + (time == 120 ? 1000 : 0);
+		arrow.rotation = 0;
+	} else if (mode == 3){
+		arrow.alpha = time / 15.0;
+		arrow.y = 550;
+		arrow.rotation = 180;
+	} else if (mode == 4){
+		arrow.alpha = 7.0 - time / 15.0;
+		arrow.y = 550 + (time == 120 ? 1000 : 0);
+		arrow.rotation = 180;
+	}
+}
+
+function update_weight(){
+	let g = weight.graphics;
+	g.clear().setStrokeStyle(2).beginStroke("#000").beginFill("#999");
+	g.drawRect(-50, -100, 100, 100).endFill();
+	if (mode == 1) {
+		weight.x = time * 4 - 130;
+		weight.y = 300;
+		weight.alpha = time / 120.0;
+	} else if (mode == 2){
+		weight.y = 300 - time * 100 / 120;
+		weight.alpha = 1.0;
+	} else if (mode == 3){
+		weight.x = time * 4 + 350;
+		weight.y = 200;
+		weight.alpha = 1.0 - time / 120.0;
+	} else if (mode == 4){
+	}
+}
+
+function update_heat(){
+	let g = heat.graphics;
+	g.clear().setStrokeStyle(2).beginStroke("#000").beginFill(mode > 2 ? "#00f" : "#f00");
+	g.drawRect(0, 0, 300, 110).endFill();
+	if (mode == 1) {
+		heat.alpha = time / 15.0;
+	} else if (mode == 2){
+		heat.alpha = 7.0 - time / 15.0;
+	} else if (mode == 3){
+		heat.alpha = time / 15.0;
+	} else if (mode == 4){
+		heat.alpha = 7.0 - time / 15.0;
+	}
+}
+
+function update_pv(){
+	let g = pv.graphics;
+	g.clear().setStrokeStyle(1).beginStroke("#000").beginFill("#0f0");
+	if (mode == 2) {
+		g.drawRect(90, -270, 180.0 * time / 120, 270, 5);
+		text_w.text = "　した仕事";
+		text_w.y = 440;
+	} else if (mode == 4) {
+		g.drawRect(270, -90, -180.0 * time / 120, 90, 5);
+		text_w.text = "された仕事";
+		text_w.y = 550;
+	} else {
+		text_w.text = time == 0 ? "" : "　仕事０";
+		text_w.y = 550;
+	}
+	g.endFill();
+	g.setStrokeStyle(2).beginStroke("#000");
+	g.moveTo(0, 0).lineTo(0, -300).lineTo(-10, -290).moveTo(0, -300).lineTo(10, -290);
+	g.moveTo(0, 0).lineTo(300, 0).lineTo(290, -10).moveTo(300, 0).lineTo(290, 10);
+	g.setStrokeStyle(1).beginStroke("#666");
+	g.drawRect(90, -270, 180, 180);
+	g.setStrokeStyle(2).beginStroke("#000");
+	if (mode == 1) {
+		g.moveTo(90, -90).lineTo(90, -270);
+		g.moveTo(90, -180).lineTo(80, -170);
+		g.moveTo(90, -180).lineTo(100, -170);
+		g.beginFill("#000").drawCircle(90, -90 - 180.0 * time / 120, 5);
+	} else if (mode == 2){
+		g.moveTo(90, -270).lineTo(270, -270);
+		g.moveTo(180, -270).lineTo(170, -280);
+		g.moveTo(180, -270).lineTo(170, -260);
+		g.beginFill("#000").drawCircle(90 + 180.0 * time / 120, -270, 5);
+	} else if (mode == 3){
+		g.moveTo(270, -270).lineTo(270, -90);
+		g.moveTo(270, -180).lineTo(260, -190);
+		g.moveTo(270, -180).lineTo(280, -190);
+		g.beginFill("#000").drawCircle(270, -270 + 180.0 * time / 120, 5);
+	} else if (mode == 4){
+		g.moveTo(270, -90).lineTo(90, -90);
+		g.moveTo(180, -90).lineTo(190, -80);
+		g.moveTo(180, -90).lineTo(190, -100);
+		g.beginFill("#000").drawCircle(270 - 180.0 * time / 120, -90, 5);
+	}
+}
+
+function update(event){
+	if (is_running) time++;
+	if (time >= 120){ 
+		is_running = false;
+		startbutton.image = startbutton.images[0];
+	}
+	update_arrow();
+	update_weight();
+	update_heat();
+	update_pv();
+
+	let g = heat_engine.graphics;
+	let y = 330;
+	if (mode == 1) {
+		y = 430;
+	} else if (mode == 2){
+		y = 430 - time * 100 / 120;
+	} else if (mode == 3){
+		y = 330;
+	} else if (mode == 4){
+		y = 330 + time * 100 / 120;
+	}
+	g.clear().setStrokeStyle(0).beginFill("#ff9").drawRect(200, y, 300, 500 - y).endFill();
+	g.setStrokeStyle(2).beginStroke("#000");
+	g.moveTo(0, 300).lineTo(200, 300).lineTo(200, 500).lineTo(500, 500).lineTo(500, 200).lineTo(900, 200);
+	g.beginFill("#ccc");
+	g.drawRect(200, y - 130, 300, 10).drawRect(250, y - 120, 200, 110).drawRect(200, y - 10, 300, 10);
+	g.setStrokeStyle(2).beginStroke("#000").beginFill("#fff");
+	g.drawRect(200, 430, 10, 10).drawRect(490, 310, 10, 10);
+	stage.update();
+	return;
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.framerate = 60;
+		createjs.Ticker.addEventListener("tick", update);
+		
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
