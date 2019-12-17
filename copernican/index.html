@@ -1,0 +1,155 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>天動説・地動説</title>
+		<meta name="description" content="天動説・地動説" />
+		<meta name="keywords" content="天動説・地動説" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="700" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+		<form><p>　<select id="theory" name="theory">
+			<option value="1" selected="selected">地動説</option>
+			<option value="2">天動説</option>
+			<option value="3">天動説（距離感なし）</option>
+		</select></p></form>
+	<script type="text/javascript">
+
+const manifest = [
+	{ id: "sun", src: "sun.png" },
+	{ id: "earth", src: "earth.png" },
+	{ id: "venus", src: "venus.png" },
+	{ id: "mars", src: "mars.png" }
+];
+
+let stage;
+
+let sun, earth, venus, mars, back, time;
+const au = 220;
+const omega = 0.02
+
+function my_init(){
+	back  = add_shape({ x: 0, y: 0 });
+	sun   = add_image(  "sun.png", { regX: 32, regY: 32, x: -999 , y: -999 });
+	earth = add_image("earth.png", { regX: 24, regY: 24, x: -999 , y: -999 });
+	venus = add_image("venus.png", { regX: 24, regY: 24, x: -999 , y: -999 });
+	mars  = add_image( "mars.png", { regX: 24, regY: 24, x: -999 , y: -999 });
+	time = 0;
+	back.graphics.clear().beginFill("#000").drawRect(0, 0, 900, 700).endFill();
+	update();
+}
+
+function update(event){
+	time++;
+	sun.rx = 450;
+	sun.ry = 350;
+	earth.rx = 450 + Math.cos(omega * time) * au;
+	earth.ry = 350 - Math.sin(omega * time) * au;
+	venus.rx = 450 + Math.cos(omega * time / 0.61) * au * 0.72;
+	venus.ry = 350 - Math.sin(omega * time / 0.61) * au * 0.72;
+	mars.rx  = 450 + Math.cos(omega * time / 1.88) * au * 1.5;
+	mars.ry  = 350 - Math.sin(omega * time / 1.88) * au * 1.5;
+	switch (document.getElementById("theory").value){
+		case "1":
+			sun.x = sun.rx;
+			sun.y = sun.ry;
+			earth.x = earth.rx;
+			earth.y = earth.ry;
+			venus.x = venus.rx;
+			venus.y = venus.ry;
+			mars.x  = mars.rx;
+			mars.y  = mars.ry;
+			break;
+		case "2":
+			earth.x = 450;
+			earth.y = 350;
+			sun.x   = earth.x + sun.rx   - earth.rx;
+			sun.y   = earth.y + sun.ry   - earth.ry;
+			venus.x = earth.x + venus.rx - earth.rx;
+			venus.y = earth.y + venus.ry - earth.ry;
+			mars.x  = earth.x + mars.rx  - earth.rx;
+			mars.y  = earth.y + mars.ry  - earth.ry;
+			break;
+		case "3":
+			earth.x = 450;
+			earth.y = 350;
+			sunr   = Math.atan2(  sun.rx - earth.rx,   sun.ry - earth.ry);
+			venusr = Math.atan2(venus.rx - earth.rx, venus.ry - earth.ry);
+			marsr  = Math.atan2( mars.rx - earth.rx,  mars.ry - earth.ry);
+			sun.x   = earth.x + Math.cos(  sunr) * au * 1.4;
+			sun.y   = earth.y - Math.sin(  sunr) * au * 1.4;
+			venus.x = earth.x + Math.cos(venusr) * au * 1.4;
+			venus.y = earth.y - Math.sin(venusr) * au * 1.4;
+			mars.x  = earth.x + Math.cos( marsr) * au * 1.4;
+			mars.y  = earth.y - Math.sin( marsr) * au * 1.4;
+			break;
+	}
+	stage.update();
+	return;
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.framerate = 60;
+		createjs.Ticker.addEventListener("tick", update);
+
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
