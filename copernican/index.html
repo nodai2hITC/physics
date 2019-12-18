@@ -19,11 +19,14 @@
 		<canvas id="stage" width="900" height="700" style="float: left;">
 		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
 		</canvas>
-		<form><p>　<select id="theory" name="theory">
-			<option value="1" selected="selected">地動説</option>
-			<option value="2">天動説</option>
-			<option value="3">天動説（距離感なし）</option>
-		</select></p></form>
+		<form>
+			<p>　<select id="theory" name="theory">
+				<option value="1" selected="selected">地動説</option>
+				<option value="2">天動説</option>
+				<option value="3">天動説（距離感なし）</option>
+			</select></p>
+			<p>　<input type="checkbox" name="circle" id="circle"><label for="circle">円を描く</label></p>
+		</form>
 	<script type="text/javascript">
 
 const manifest = [
@@ -35,12 +38,13 @@ const manifest = [
 
 let stage;
 
-let sun, earth, venus, mars, back, time;
+let sun, earth, venus, mars, back, circle, time;
 const au = 220;
 const omega = 0.02
 
 function my_init(){
-	back  = add_shape({ x: 0, y: 0 });
+	back   = add_shape({ x: 0, y: 0 });
+	circle = add_shape({ x: 0, y: 0 });
 	sun   = add_image(  "sun.png", { regX: 32, regY: 32, x: -999 , y: -999 });
 	earth = add_image("earth.png", { regX: 24, regY: 24, x: -999 , y: -999 });
 	venus = add_image("venus.png", { regX: 24, regY: 24, x: -999 , y: -999 });
@@ -52,6 +56,7 @@ function my_init(){
 
 function update(event){
 	time++;
+	circle.graphics.clear();
 	sun.rx = 450;
 	sun.ry = 350;
 	earth.rx = 450 + Math.cos(omega * time) * au;
@@ -70,6 +75,12 @@ function update(event){
 			venus.y = venus.ry;
 			mars.x  = mars.rx;
 			mars.y  = mars.ry;
+			if (document.getElementById("circle").checked){
+				circle.graphics.setStrokeStyle(1);
+				circle.graphics.beginStroke("#999").drawCircle(sun.x, sun.y, au).endStroke();
+				circle.graphics.beginStroke("#999").drawCircle(sun.x, sun.y, au * 0.72).endStroke();
+				circle.graphics.beginStroke("#999").drawCircle(sun.x, sun.y, au * 1.5).endStroke();
+			}
 			break;
 		case "2":
 			earth.x = 450;
@@ -80,6 +91,12 @@ function update(event){
 			venus.y = earth.y + venus.ry - earth.ry;
 			mars.x  = earth.x + mars.rx  - earth.rx;
 			mars.y  = earth.y + mars.ry  - earth.ry;
+			if (document.getElementById("circle").checked){
+				circle.graphics.setStrokeStyle(1);
+				circle.graphics.beginStroke("#999").drawCircle(earth.x, earth.y, au).endStroke();
+				circle.graphics.beginStroke("#999").drawCircle(sun.x, sun.y, au * 0.72).endStroke();
+				circle.graphics.beginStroke("#999").drawCircle(sun.x, sun.y, au * 1.5).endStroke();
+			}
 			break;
 		case "3":
 			earth.x = 450;
@@ -93,6 +110,10 @@ function update(event){
 			venus.y = earth.y - Math.sin(venusr) * au * 1.4;
 			mars.x  = earth.x + Math.cos( marsr) * au * 1.4;
 			mars.y  = earth.y - Math.sin( marsr) * au * 1.4;
+			if (document.getElementById("circle").checked){
+				circle.graphics.setStrokeStyle(1).beginStroke("#999");
+				circle.graphics.drawCircle(earth.x, earth.y, au * 1.4).endStroke();
+			}
 			break;
 	}
 	stage.update();
