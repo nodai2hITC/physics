@@ -1,0 +1,224 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>y-x図とy-t図</title>
+		<meta name="description" content="y-x図とy-t図" />
+		<meta name="keywords" content="y-x図とy-t図" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+			input[type="range"]{
+				width: 320px;
+			}
+			form{
+				text-align: center;
+			}
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+	</head>
+	<body>
+	<div id="canvas">
+		<canvas width="1024" height="480" id="stage">
+			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	</div>
+	<form>
+		<p>
+			　<input type="radio" id="mode1" name="mode" value="1" onchange="get_data();" checked="checked" /><label for="">最初から波あり</label>
+			　<input type="radio" id="mode2" name="mode" value="2" onchange="get_data();" /><label for="">最初は波なし</label>
+		</p>
+		<p>
+			　波長：
+			<input type="range" id="lambda" min="100" max="500" value="300" onchange="get_data();" />
+			<span id="lambda_value">300</span>　　
+			　周期：
+			<input type="range" id="T" min="30" max="240" value="120" onchange="get_data();" /> 
+			<span id="T_value">2.0</span>
+		</p>
+	</form>
+
+	<script type="text/javascript">
+
+const manifest = [
+	{ id: "startbutton", src: "startbutton.png" },
+	{ id: "stopbutton",  src: "stopbutton.png" },
+	{ id: "resetbutton", src: "resetbutton.png" },
+	{ id: "mark",       src: "mark.png" }
+];
+
+let stage;
+let wave1, wave2, mark1, mark2, axis, line;
+let text_x, text_t, text_y1, text_y2;
+let time = 0;
+let speed, T, mode, lambda;
+let is_running = false;
+
+function my_init(){
+	reset_stage();
+	line = add_shape({ x: 0, y: 0 });
+	axis = add_shape({ x: 0, y: 0 });
+	axis.graphics.clear().setStrokeStyle(2).beginStroke("#000")
+		.moveTo(32, 420).lineTo(32, 20).lineTo(17, 35).moveTo(32, 20).lineTo(47, 35)
+		.moveTo(22, 220).lineTo(492, 220).lineTo(477, 205).moveTo(492, 220).lineTo(477, 235)
+		.moveTo(540, 420).lineTo(540, 20).lineTo(525, 35).moveTo(540, 20).lineTo(555, 35)
+		.moveTo(530, 220).lineTo(1000, 220).lineTo(985, 205).moveTo(1000, 220).lineTo(985, 235);
+	text_x  = add_text("x", "24px Meiryo", "#000", { x: 492, y: 220 });
+	text_y1 = add_text("y", "24px Meiryo", "#000", { x: 8, y: 0 });
+	text_y2 = add_text("y", "24px Meiryo", "#000", { x: 516, y: 0 });
+	text_t  = add_text("t", "24px Meiryo", "#000", { x: 1000, y: 220 });
+
+	wave1 = add_shape({x: 32, y: 220});
+	wave2 = add_shape({x: 540, y: 220});
+	mark1 = add_image("mark.png", { regX: 12, regY: 12, x: 32 , y: 220,
+		onMouseDown: function(evt){
+			this.offset = { x: this.x-evt.stageX, y: this.y-evt.stageY };
+		},
+		onPressMove: function(evt){
+			this.x = evt.stageX + this.offset.x;
+			if (this.x <  32) this.x =  32;
+			if (this.x > 492) this.x = 492;
+		}
+	});
+	mark2 = add_image("mark.png", { regX: 12, regY: 12, x: wave2.x , y: 220});
+
+	startbutton = add_image("startbutton.png", { regX: 24, regY: 24, x: 30 , y: 450,
+		images: [(new createjs.Bitmap("startbutton.png")).image,
+		         (new createjs.Bitmap( "stopbutton.png")).image],
+		onMouseDown: function(evt){
+			is_running = !is_running;
+			this.image = is_running ? this.images[1] : this.images[0];
+		}
+	});
+	resetbutton = add_image("resetbutton.png", { regX: 24, regY: 24, x: 100 , y: 450,
+		onMouseDown: function(evt){
+			reset_stage();
+		}
+	});
+}
+
+function reset_stage(){
+	time = 0;
+	get_data();
+}
+
+function get_data(){
+	lambda = parseInt(document.getElementById("lambda").value);
+	T      = parseInt(document.getElementById("T").value);
+	speed = lambda * 60.0 / T;
+	mode   = document.getElementById("mode1").checked ? 1 : 2;
+	document.getElementById("lambda_value").innerText = ("   " + lambda.toString()).slice(-3);
+	document.getElementById("T_value").innerText = parseInt(T / 60).toString() + "." + (parseInt(T / 6) % 10).toString();
+}
+
+function update(event){
+	if (is_running) time++;
+	let mark_x = mark1.x - 32;
+	let g;
+
+	g = wave1.graphics;
+	g.clear().setStrokeStyle(2).beginStroke("#000");
+	for(let x = lambda; x < 460; x += lambda) g.moveTo(x, -5).lineTo(x, 5);
+	g.setStrokeStyle(4).beginStroke("#000");
+	g.moveTo(0, cal_y(0, time));
+	if (mode == 1){
+		for(let x=2; x<=460; x+=2){
+			g.lineTo(x, cal_y(x, time));
+		}
+	} else {
+		let max_x = 1.0 * speed * time / 60;
+		if (max_x > 460) max_x = 460;
+		for(let x=2; x<=max_x; x+=2){
+			g.lineTo(x, cal_y(x, time));
+		}
+		if (max_x < 460) g.lineTo(max_x, 0).lineTo(460, 0);
+	}
+	mark1.y = mark2.y = cal_y(mark_x, time) + 220;
+	if (1.0 * speed * time / 60 < mark_x) mark1.y = mark2.y = 220;
+	mark2.x = wave2.x + time * 1.5;
+
+	g = wave2.graphics;
+	g.clear().setStrokeStyle(2).beginStroke("#000");
+	for(let t = T * 1.5; t < 460; t += T * 1.5) g.moveTo(t, -5).lineTo(t, 5);
+	g.setStrokeStyle(4).beginStroke("#000");
+	g.moveTo(0, cal_y(mark_x, 0));
+	if (mode == 1){
+		for(let t=2; t<=460; t+=2){
+			g.lineTo(t, cal_y(mark_x, t / 1.5));
+		}
+	} else {
+		let dt = 90 * mark_x / speed;
+		g.moveTo(0, 0).lineTo(dt, 0);
+		for(let t=dt; t<=460; t+=2){
+			g.lineTo(t, cal_y(mark_x, t / 1.5));
+		}
+		g.lineTo(460, cal_y(mark_x, 460 / 1.5));
+	}
+
+	g = line.graphics;
+	g.clear().setStrokeStyle(1).beginStroke("#999");
+	g.moveTo(mark1.x, mark1.y).lineTo(mark2.x, mark2.y).lineTo(mark2.x, 220);
+
+	stage.update();
+}
+
+function cal_y(x, t){
+	return -160 * Math.sin(120 * Math.PI * (t / 60.0 - 1.0 * x / speed) / T);
+}
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.framerate = 60;
+		createjs.Ticker.addEventListener("tick", update);
+
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
