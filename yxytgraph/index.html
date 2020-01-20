@@ -137,7 +137,7 @@ function update(event){
 		if (max_x < 460) g.lineTo(max_x, 0).lineTo(460, 0);
 	}
 	mark1.y = mark2.y = cal_y(mark_x, time) + 220;
-	if (1.0 * speed * time / 60 < mark_x) mark1.y = mark2.y = 220;
+	if (1.0 * speed * time / 60 < mark_x && mode == 2) mark1.y = mark2.y = 220;
 	mark2.x = wave2.x + time * 1.5;
 
 	g = wave2.graphics;
