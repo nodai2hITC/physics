@@ -19,6 +19,13 @@
 			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
 		</canvas>
 	</div>
+	<form>
+		<p>
+			　<input type="checkbox" id="wave1" checked="checked" /><label for="wave1">合成波を表示</label>
+			　<input type="checkbox" id="wave2" checked="checked" /><label for="wave2">入射波・反射波を表示</label>
+		</p>
+	</form>
+
 	<script type="text/javascript">
 
 var wave_minx = 4;
@@ -106,9 +113,9 @@ function my_init(){
 			var y = evt.stageY + this.offset.y;
 			if (y <  80) y =  80;
 			if (y > 220) y = 220;
-			this.y = (last_y + y) / 2;
+//			this.y = (last_y + y) / 2;
 			last_y = y;
-//			this.y = y;
+			this.y = y;
 		},
 		onPressUp: function(evt){
 			this.mode = "stop";
@@ -178,27 +185,30 @@ function draw_waves(wave){
 	var g = wave.graphics;
 	g.clear();
 	
-	// それぞれの波を描画
-	g.setStrokeStyle(2);
-	for(var i=0; i<wave.waves.length; i++){
-		g.beginStroke(wave.waves[i].colour);
-		g.moveTo(0, wave.waves[i].y[0]);
-		var y = wave.waves[i].y;
-		for(var j=1; j<y.length; j++){
-			g.lineTo(j * wave_minx, y[j]);
+	if (document.getElementById("wave2").checked){
+		// それぞれの波を描画
+		g.setStrokeStyle(2);
+		for(var i=0; i<wave.waves.length; i++){
+			g.beginStroke(wave.waves[i].colour);
+			g.moveTo(0, wave.waves[i].y[0]);
+			var y = wave.waves[i].y;
+			for(var j=1; j<y.length; j++){
+				g.lineTo(j * wave_minx, y[j]);
+			}
+			g.endStroke();
+		}
+	}
+
+	if (document.getElementById("wave1").checked){
+		// 合成波を描画
+		g.setStrokeStyle(4);
+		g.beginStroke("#000");
+		g.moveTo(0, sumy(wave, 0));
+		for(var j=1; j<wave.waves[0].y.length; j++){
+			g.lineTo(j * wave_minx, sumy(wave, j));
 		}
 		g.endStroke();
 	}
-	
-	// 合成波を描画
-	g.setStrokeStyle(4);
-	g.beginStroke("#000");
-	g.moveTo(0, sumy(wave, 0));
-	for(var j=1; j<wave.waves[0].y.length; j++){
-		g.lineTo(j * wave_minx, sumy(wave, j));
-	}
-	g.endStroke();
-	
 	// 基準線を引く
 //	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
 	
