@@ -19,7 +19,26 @@
 			ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
 		</canvas>
 	</div>
-
+	<form>
+		<p style="text-align: center;">
+			　<input type="checkbox" id="wave1" checked="checked" /><label for="wave1">合成波を表示</label>
+			　<input type="checkbox" id="wave2" checked="checked" /><label for="wave2">入射波・反射波を表示</label>
+			　左の波：<select id="wave1_type" name="wave1_type">
+				<option value="1" selected="selected">正弦波</option>
+				<option value="2">長い山</option>
+				<option value="3">短い山</option>
+				<option value="4">長い谷</option>
+				<option value="5">短い谷</option>
+			</select>
+			　右の波：<select id="wave2_type" name="wave2_type">
+				<option value="1" selected="selected">正弦波</option>
+				<option value="2">長い山</option>
+				<option value="3">短い山</option>
+				<option value="4">長い谷</option>
+				<option value="5">短い谷</option>
+			</select>
+		</p>
+	</form>
 	
 	<script type="text/javascript">
 
@@ -65,7 +84,47 @@ function my_init(){
 		case "once":
 		case "loop":
 			this.t++;
-			y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+			switch(document.getElementById("wave1_type").value){
+				case "1":
+					y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+					break;
+				case "2":
+					if (this.t < 20){
+						y = -5 * this.t;
+					} else if (this.t >= 60 && this.mode=="once"){
+						y = -5 * (80 - this.t);
+					} else {
+						y = -100;
+					}
+					break;
+				case "3":
+					if (this.t < 20){
+						y = -5 * this.t;
+					} else if (this.t < 40){
+						y = -5 * (40 - this.t);
+					} else {
+						y = 0;
+					}
+					break;
+				case "4":
+					if (this.t < 20){
+						y = 5 * this.t;
+					} else if (this.t >= 60 && this.mode=="once"){
+						y = 5 * (80 - this.t);
+					} else {
+						y = -100;
+					}
+					break;
+				case "5":
+					if (this.t < 20){
+						y = 5 * this.t;
+					} else if (this.t < 40){
+						y = 5 * (40 - this.t);
+					} else {
+						y = 0;
+					}
+					break;
+			}
 			if (this.mode=="once" && this.t >= T){
 				this.mode = "stop";
 				this.t = 0;
@@ -81,7 +140,47 @@ function my_init(){
 		case "once":
 		case "loop":
 			this.t++;
-			y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+			switch(document.getElementById("wave2_type").value){
+				case "1":
+					y = - Math.sin(Math.PI * this.t / T * 2) * 100;
+					break;
+				case "2":
+					if (this.t < 20){
+						y = -5 * this.t;
+					} else if (this.t >= 60 && this.mode=="once"){
+						y = -5 * (80 - this.t);
+					} else {
+						y = -100;
+					}
+					break;
+				case "3":
+					if (this.t < 20){
+						y = -5 * this.t;
+					} else if (this.t < 40){
+						y = -5 * (40 - this.t);
+					} else {
+						y = 0;
+					}
+					break;
+				case "4":
+					if (this.t < 20){
+						y = 5 * this.t;
+					} else if (this.t >= 60 && this.mode=="once"){
+						y = 5 * (80 - this.t);
+					} else {
+						y = -100;
+					}
+					break;
+				case "5":
+					if (this.t < 20){
+						y = 5 * this.t;
+					} else if (this.t < 40){
+						y = 5 * (40 - this.t);
+					} else {
+						y = 0;
+					}
+					break;
+			}
 			if (this.mode=="once" && this.t >= T){
 				this.mode = "stop";
 				this.t = 0;
@@ -215,28 +314,32 @@ function draw_waves(wave){
 	var g = wave.graphics;
 	g.clear();
 	
-	// 合成波を描画
-	g.setStrokeStyle(4);
-	g.beginStroke("#000");
-	g.moveTo(0, sumy(wave, 0));
-	for(var j=1; j<wave.waves[0].y.length; j++){
-		g.lineTo(j * wave_minx, sumy(wave, j));
-	}
-	g.endStroke();
-	if (marks[0].onwave){
-		marks[0].y = sumy(wave, marks[0].wave_x) + regY;
-	}
-	
-	// それぞれの波を描画
-	g.setStrokeStyle(2);
-	for(var i=0; i<wave.waves.length; i++){
-		g.beginStroke(wave.waves[i].colour);
-		g.moveTo(0, wave.waves[i].y[0]);
-		var y = wave.waves[i].y;
-		for(var j=1; j<y.length; j++){
-			g.lineTo(j * wave_minx, y[j]);
+	if (document.getElementById("wave1").checked){
+		// 合成波を描画
+		g.setStrokeStyle(4);
+		g.beginStroke("#000");
+		g.moveTo(0, sumy(wave, 0));
+		for(var j=1; j<wave.waves[0].y.length; j++){
+			g.lineTo(j * wave_minx, sumy(wave, j));
 		}
 		g.endStroke();
+	}
+	if (marks[0].onwave){
+			marks[0].y = sumy(wave, marks[0].wave_x) + regY;
+		}
+	
+	if (document.getElementById("wave2").checked){
+		// それぞれの波を描画
+		g.setStrokeStyle(2);
+		for(var i=0; i<wave.waves.length; i++){
+			g.beginStroke(wave.waves[i].colour);
+			g.moveTo(0, wave.waves[i].y[0]);
+			var y = wave.waves[i].y;
+			for(var j=1; j<y.length; j++){
+				g.lineTo(j * wave_minx, y[j]);
+			}
+			g.endStroke();
+		}
 	}
 	
 	// 基準線を引く
