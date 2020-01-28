@@ -21,16 +21,18 @@
 	</div>
 	<form>
 		<p style="text-align: center;">
-			　<input type="checkbox" id="wave1" checked="checked" /><label for="wave1">合成波を表示</label>
-			　<input type="checkbox" id="wave2" checked="checked" /><label for="wave2">入射波・反射波を表示</label>
-			　左の波：<select id="wave1_type" name="wave1_type">
+			表示：
+			<input type="checkbox" id="wave1" checked="checked" /><label for="wave1">合成波</label>　
+			<input type="checkbox" id="wave2" checked="checked" /><label for="wave2">それぞれの波</label>　
+			<input type="checkbox" id="wave3" checked="checked" /><label for="wave3">基準線</label>　
+			左の波：<select id="wave1_type" name="wave1_type">
 				<option value="1" selected="selected">正弦波</option>
 				<option value="2">長い山</option>
 				<option value="3">短い山</option>
 				<option value="4">長い谷</option>
 				<option value="5">短い谷</option>
-			</select>
-			　右の波：<select id="wave2_type" name="wave2_type">
+			</select>　
+			右の波：<select id="wave2_type" name="wave2_type">
 				<option value="1" selected="selected">正弦波</option>
 				<option value="2">長い山</option>
 				<option value="3">短い山</option>
@@ -342,9 +344,10 @@ function draw_waves(wave){
 		}
 	}
 	
-	// 基準線を引く
-	g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
-	
+	if (document.getElementById("wave3").checked){
+		// 基準線を引く
+		g.setStrokeStyle(2).beginStroke("#999").moveTo(0, 0).lineTo(width, 0).endStroke();
+	}
 	// 更新
 	stage.update();
 }
