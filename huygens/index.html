@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+	<head>
+		<meta charset="UTF-8">
+		<title>ホイヘンスの原理</title>
+		<meta name="description" content="ホイヘンスの原理" />
+		<meta name="keywords" content="ホイヘンスの原理" />
+		<link rel="stylesheet" type="text/css" href="../style/default.css" />
+		<style type="text/css">
+		</style>
+		<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+		<script src="https://code.createjs.com/1.0.0/easeljs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/preloadjs.min.js"></script>
+		<script src="https://code.createjs.com/1.0.0/tweenjs.min.js"></script>
+	</head>
+	<body>
+		<canvas id="stage" width="900" height="700" style="float: left;">
+		ご使用のブラウザは Canvas 未対応です。Canvas 対応ブラウザで御覧下さい。
+		</canvas>
+	<script type="text/javascript">
+
+const manifest = [
+];
+
+let stage;
+let time, shape, shape2, x = 650, y = 350;
+let circles = [];
+
+function my_init(){
+	shape = add_shape({ x: 0, y: 0 });
+	shape2 = add_shape({ x: 0, y: 0 });
+	shape.graphics.beginStroke("#0002");
+	time = 0;
+	update();
+}
+
+function update(event){
+	time++;
+	if (time % 2 == 0){
+		let theta = Math.random() * Math.PI * 2;
+		let x = Math.sin(theta) * 200 + 450;
+		let y = Math.cos(theta) * 200 + 350;
+		let start = time;
+		circles.push({x: x, y: y, start: start});
+	}
+	shape2.graphics.clear();
+	circles.forEach(function(circle){
+		let t = time - circle.start;
+		shape2.graphics.beginStroke("#000" + (16 - t).toString(16)).
+		                moveTo(circle.x + 100 * (t + 1) / 15, circle.y).drawCircle(circle.x, circle.y, 100 * (t + 1) / 15);
+		if (t >= 14){
+			shape.graphics.moveTo(circle.x + 100, circle.y).drawCircle(circle.x, circle.y, 100);
+			circle.start = null;
+		}
+	});
+	circles = circles.filter(v => v.start);
+	shape2.graphics.beginStroke("#000").beginFill("#fff").drawCircle(450, 350, 200);
+	
+	stage.update();
+	return;
+}
+
+
+function add_object(object, hash){
+	for(var i in hash){
+		if (i.match(/^on(MouseDown|PressMove|PressUp|DblClick)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i]);
+		} else if (i.match(/^on(Change)$/)){
+			object.on(RegExp.$1.toLowerCase(), hash[i], this);
+		}
+		object[i] = hash[i];
+	}
+	stage.addChild(object);
+	return object;
+}
+function add_image(filename, hash){
+	return add_object(new createjs.Bitmap(filename), hash);
+}
+function add_text(text, font, color, hash){
+	return add_object(new createjs.Text(text, font, color), hash);
+}
+function add_shape(hash){
+	return add_object(new createjs.Shape(), hash);
+}
+function add_slider(min, max, width, height, hash){
+	return add_object(new Slider(min, max, width, height), hash);
+}
+
+(function(window){
+	function init(){
+		stage = new createjs.Stage("stage");
+		createjs.Ticker.framerate = 60;
+		createjs.Ticker.addEventListener("tick", update);
+
+		my_init();
+		
+		createjs.Touch.enable(stage);
+		stage.update();
+	}
+	
+	window.addEventListener("load", function(){
+		if (manifest.length == 0){
+			init();
+		} else {
+			preload = new createjs.LoadQueue(false);
+			preload.loadManifest(manifest);
+			preload.on("complete", init);
+		}
+		window.removeEventListener("load", arguments.callee);
+	}, false);
+}(window));
+
+	</script>
+	</body>
+</html>
+
